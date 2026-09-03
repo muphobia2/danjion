@@ -16,7 +16,13 @@ async function getResidentContext(request, env) {
 
   if (!auth?.sub) {
     return {
-      error: json({ ok: false, error: "UNAUTHORIZED" }, 401),
+      error: json(
+        {
+          ok: false,
+          error: "UNAUTHORIZED",
+        },
+        401
+      ),
     };
   }
 
@@ -66,19 +72,27 @@ async function getResidentContext(request, env) {
 }
 
 export async function handleBusinesses(request, env) {
-  const context = await getResidentContext(request, env);
+  const context =
+    await getResidentContext(request, env);
 
   if (context.error) {
     return context.error;
   }
 
-  const { sql, userId, complexId } = context;
-
-  // --------------------------------------------------
-  // 주민용 승인 가게 목록
-  // --------------------------------------------------
+  const {
+    sql,
+    userId,
+    complexId,
+  } = context;
 
   if (request.method === "GET") {
+    const url = new URL(request.url);
+
+    const category =
+      String(
+        url.searchParams.get("category") ?? ""
+      ).trim();
+
     const rows = await sql`
       SELECT
         biz.id,
@@ -107,6 +121,10 @@ export async function handleBusinesses(request, env) {
         ON bc.id = biz.category_id
 
       WHERE biz.approval_status = 'approved'
+        AND (
+          ${category} = ''
+          OR bc.slug = ${category}
+        )
 
       ORDER BY
         CASE rel.relationship_type
@@ -124,14 +142,12 @@ export async function handleBusinesses(request, env) {
       ok: true,
       data: {
         count: rows.length,
+        category:
+          category || null,
         businesses: rows,
       },
     });
   }
-
-  // --------------------------------------------------
-  // 주민의 가게 등록 신청
-  // --------------------------------------------------
 
   if (request.method === "POST") {
     let body;
@@ -148,11 +164,18 @@ export async function handleBusinesses(request, env) {
       );
     }
 
-    const name = String(body?.name ?? "").trim();
+    const name =
+      String(body?.name ?? "").trim();
+
     const businessKind =
-      String(body?.business_kind ?? "").trim();
+      String(
+        body?.business_kind ?? ""
+      ).trim();
+
     const categorySlug =
-      String(body?.category_slug ?? "other").trim();
+      String(
+        body?.category_slug ?? "other"
+      ).trim();
 
     if (!name) {
       return json(
@@ -164,7 +187,9 @@ export async function handleBusinesses(request, env) {
       );
     }
 
-    if (!BUSINESS_KINDS.has(businessKind)) {
+    if (
+      !BUSINESS_KINDS.has(businessKind)
+    ) {
       return json(
         {
           ok: false,
@@ -196,6 +221,7 @@ export async function handleBusinesses(request, env) {
           contact_url,
           approval_status
         )
+
         SELECT
           ${name},
           ${businessKind},
@@ -207,7 +233,9 @@ export async function handleBusinesses(request, env) {
           ${body?.phone ?? null},
           ${body?.contact_url ?? null},
           'pending'
+
         FROM selected_category
+
         RETURNING
           id,
           name,
@@ -223,11 +251,14 @@ export async function handleBusinesses(request, env) {
           user_id,
           owner_role
         )
+
         SELECT
           id,
           ${userId},
           'owner'
+
         FROM new_business
+
         RETURNING business_id
       ),
 
@@ -236,10 +267,13 @@ export async function handleBusinesses(request, env) {
           user_id,
           role
         )
+
         SELECT
           ${userId},
           'business_owner'
+
         FROM new_business
+
         ON CONFLICT (user_id, role)
         DO NOTHING
       ),
@@ -253,6 +287,7 @@ export async function handleBusinesses(request, env) {
           verification_status,
           verified_at
         )
+
         SELECT
           id,
           ${complexId},
@@ -260,7 +295,9 @@ export async function handleBusinesses(request, env) {
           ${userId},
           'verified',
           NOW()
+
         FROM new_business
+
         RETURNING business_id
       )
 
@@ -272,7 +309,9 @@ export async function handleBusinesses(request, env) {
         nb.created_at,
         bc.slug AS category_slug,
         bc.name AS category_name
+
       FROM new_business nb
+
       JOIN business_categories bc
         ON bc.id = nb.category_id
     `;
