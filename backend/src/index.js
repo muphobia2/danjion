@@ -1,5 +1,6 @@
 ﻿import { handleHello } from "./routes/hello.js";
 import { handleTestUsers } from "./routes/test-users.js";
+import { handleComplexes } from "./routes/complexes.js";
 
 export default {
   async fetch(request, env) {
@@ -11,6 +12,10 @@ export default {
 
     if (url.pathname === "/api/test-users") {
       return handleTestUsers(env);
+    }
+
+    if (url.pathname === "/api/complexes") {
+      return handleComplexes(env);
     }
 
     return new Response("Danjion API Dev", {
