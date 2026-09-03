@@ -1,0 +1,9 @@
+﻿backend/node_modules/
+backend/.wrangler/
+backend/.dev.vars
+backend/.env
+backend/src_before_refactor_*/
+
+**/desktop.ini
+
+**/desktop.ini
