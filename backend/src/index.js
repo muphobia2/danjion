@@ -1,6 +1,8 @@
-﻿import { handleHello } from "./routes/hello.js";
+﻿
+import { handleHello } from "./routes/hello.js";
 import { handleTestUsers } from "./routes/test-users.js";
 import { handleComplexes } from "./routes/complexes.js";
+import { handleBuildings } from "./routes/buildings.js";
 
 export default {
   async fetch(request, env) {
@@ -18,6 +20,9 @@ export default {
       return handleComplexes(env);
     }
 
+    if (url.pathname === "/api/buildings") {
+      return handleBuildings(env);
+    }
     return new Response("Danjion API Dev", {
       headers: {
         "Content-Type": "text/plain; charset=UTF-8",
