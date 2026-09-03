@@ -12,15 +12,18 @@ const BUSINESS_KINDS = new Set([
 ]);
 
 async function getResidentContext(request, env) {
-  const auth = await verifyAuthToken(request, env);
+  let auth;
+
+  try {
+    auth = await verifyAuthToken(request, env);
+  } catch {
+    auth = null;
+  }
 
   if (!auth?.sub) {
     return {
       error: json(
-        {
-          ok: false,
-          error: "UNAUTHORIZED",
-        },
+        { ok: false, error: "UNAUTHORIZED" },
         401
       ),
     };
@@ -32,23 +35,31 @@ async function getResidentContext(request, env) {
     SELECT
       u.id AS user_id,
       c.id AS complex_id
+
     FROM users u
+
     JOIN user_roles ur
       ON ur.user_id = u.id
      AND ur.role = 'resident'
+
     JOIN household_members hm
       ON hm.user_id = u.id
      AND hm.membership_status = 'verified'
+
     JOIN households h
       ON h.id = hm.household_id
+
     JOIN buildings b
       ON b.id = h.building_id
+
     JOIN complexes c
       ON c.id = b.complex_id
+
     WHERE u.auth_provider = 'neon_auth'
       AND u.auth_subject = ${String(auth.sub)}
       AND u.account_status = 'active'
       AND c.slug = 'banglim-myeongji-roadhill'
+
     LIMIT 1
   `;
 
@@ -93,9 +104,23 @@ export async function handleBusinesses(request, env) {
         url.searchParams.get("category") ?? ""
       ).trim();
 
+    const filter =
+      String(
+        url.searchParams.get("filter") ?? ""
+      ).trim();
+
+    const q =
+      String(
+        url.searchParams.get("q") ?? ""
+      ).trim();
+
+    const searchPattern =
+      `%${q}%`;
+
     const rows = await sql`
       SELECT
         biz.id,
+        biz.public_slug,
         biz.name,
         biz.business_kind,
         biz.short_intro,
@@ -104,11 +129,35 @@ export async function handleBusinesses(request, env) {
         biz.service_area_text,
         biz.phone,
         biz.contact_url,
+        biz.updated_at,
 
         bc.slug AS category_slug,
         bc.name AS category_name,
+        bc.filter_key,
 
-        rel.relationship_type
+        rel.relationship_type,
+
+        EXISTS (
+          SELECT 1
+          FROM saved_businesses sb
+          WHERE sb.user_id = ${userId}
+            AND sb.business_id = biz.id
+        ) AS saved,
+
+        EXISTS (
+          SELECT 1
+          FROM business_benefits bb
+          WHERE bb.business_id = biz.id
+            AND bb.status = 'active'
+            AND (
+              bb.valid_from IS NULL
+              OR bb.valid_from <= NOW()
+            )
+            AND (
+              bb.valid_until IS NULL
+              OR bb.valid_until >= NOW()
+            )
+        ) AS has_active_benefit
 
       FROM businesses biz
 
@@ -121,9 +170,37 @@ export async function handleBusinesses(request, env) {
         ON bc.id = biz.category_id
 
       WHERE biz.approval_status = 'approved'
+
         AND (
           ${category} = ''
           OR bc.slug = ${category}
+        )
+
+        AND (
+          ${filter} = ''
+          OR ${filter} = 'all'
+          OR bc.filter_key = ${filter}
+        )
+
+        AND (
+          ${q} = ''
+          OR biz.name ILIKE ${searchPattern}
+          OR COALESCE(
+            biz.short_intro,
+            ''
+          ) ILIKE ${searchPattern}
+          OR COALESCE(
+            biz.description,
+            ''
+          ) ILIKE ${searchPattern}
+          OR COALESCE(
+            biz.service_area_text,
+            ''
+          ) ILIKE ${searchPattern}
+          OR COALESCE(
+            bc.name,
+            ''
+          ) ILIKE ${searchPattern}
         )
 
       ORDER BY
@@ -134,7 +211,7 @@ export async function handleBusinesses(request, env) {
           WHEN 'local_partner' THEN 4
           ELSE 99
         END,
-        COALESCE(bc.sort_order, 999),
+        biz.updated_at DESC,
         biz.name
     `;
 
@@ -142,8 +219,9 @@ export async function handleBusinesses(request, env) {
       ok: true,
       data: {
         count: rows.length,
-        category:
-          category || null,
+        query: q || null,
+        category: category || null,
+        filter: filter || null,
         businesses: rows,
       },
     });
@@ -156,10 +234,7 @@ export async function handleBusinesses(request, env) {
       body = await request.json();
     } catch {
       return json(
-        {
-          ok: false,
-          error: "INVALID_JSON",
-        },
+        { ok: false, error: "INVALID_JSON" },
         400
       );
     }
@@ -187,9 +262,7 @@ export async function handleBusinesses(request, env) {
       );
     }
 
-    if (
-      !BUSINESS_KINDS.has(businessKind)
-    ) {
+    if (!BUSINESS_KINDS.has(businessKind)) {
       return json(
         {
           ok: false,
@@ -238,6 +311,7 @@ export async function handleBusinesses(request, env) {
 
         RETURNING
           id,
+          public_slug,
           name,
           business_kind,
           category_id,
@@ -303,12 +377,14 @@ export async function handleBusinesses(request, env) {
 
       SELECT
         nb.id,
+        nb.public_slug,
         nb.name,
         nb.business_kind,
         nb.approval_status,
         nb.created_at,
         bc.slug AS category_slug,
-        bc.name AS category_name
+        bc.name AS category_name,
+        bc.filter_key
 
       FROM new_business nb
 
@@ -336,10 +412,7 @@ export async function handleBusinesses(request, env) {
   }
 
   return json(
-    {
-      ok: false,
-      error: "METHOD_NOT_ALLOWED",
-    },
+    { ok: false, error: "METHOD_NOT_ALLOWED" },
     405
   );
 }

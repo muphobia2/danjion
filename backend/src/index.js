@@ -32,11 +32,21 @@ import {
 import {
   handleBusinessCategories,
   handleMyBusinesses,
-  handleBusinessDetail,
   handleUpdateMyBusiness,
   handleBusinessHours,
   handleBusinessBenefits,
 } from "./routes/business-management.js";
+
+import {
+  handleHome,
+  handleBusinessDetail,
+  handleBusinessBySlug,
+  handleBusinessSave,
+  handleMySavedBusinesses,
+  handleBusinessReviews,
+  handleMyReviewMutation,
+  handleReviewReply,
+} from "./routes/business-discovery.js";
 
 export default {
   async fetch(request, env) {
@@ -60,6 +70,10 @@ export default {
 
     if (url.pathname === "/api/me") {
       return handleMe(request, env);
+    }
+
+    if (url.pathname === "/api/home") {
+      return handleHome(request, env);
     }
 
     if (
@@ -105,9 +119,10 @@ export default {
       );
     }
 
-    // ==================================================
-    // 이웃가게
-    // ==================================================
+
+    // =====================================================
+    // BUSINESS
+    // =====================================================
 
     if (
       url.pathname ===
@@ -119,10 +134,7 @@ export default {
       );
     }
 
-    if (
-      url.pathname ===
-      "/api/businesses"
-    ) {
+    if (url.pathname === "/api/businesses") {
       return handleBusinesses(
         request,
         env
@@ -136,6 +148,81 @@ export default {
       return handleMyBusinesses(
         request,
         env
+      );
+    }
+
+    if (
+      url.pathname ===
+      "/api/me/saved-businesses"
+    ) {
+      return handleMySavedBusinesses(
+        request,
+        env
+      );
+    }
+
+    const bySlugMatch =
+      url.pathname.match(
+        /^\/api\/businesses\/by-slug\/([^/]+)$/
+      );
+
+    if (bySlugMatch) {
+      return handleBusinessBySlug(
+        request,
+        env,
+        decodeURIComponent(bySlugMatch[1])
+      );
+    }
+
+    const businessSaveMatch =
+      url.pathname.match(
+        /^\/api\/businesses\/(\d+)\/save$/
+      );
+
+    if (businessSaveMatch) {
+      return handleBusinessSave(
+        request,
+        env,
+        businessSaveMatch[1]
+      );
+    }
+
+    const businessReviewsMatch =
+      url.pathname.match(
+        /^\/api\/businesses\/(\d+)\/reviews$/
+      );
+
+    if (businessReviewsMatch) {
+      return handleBusinessReviews(
+        request,
+        env,
+        businessReviewsMatch[1]
+      );
+    }
+
+    const reviewReplyMatch =
+      url.pathname.match(
+        /^\/api\/reviews\/(\d+)\/reply$/
+      );
+
+    if (reviewReplyMatch) {
+      return handleReviewReply(
+        request,
+        env,
+        reviewReplyMatch[1]
+      );
+    }
+
+    const reviewMatch =
+      url.pathname.match(
+        /^\/api\/reviews\/(\d+)$/
+      );
+
+    if (reviewMatch) {
+      return handleMyReviewMutation(
+        request,
+        env,
+        reviewMatch[1]
       );
     }
 
@@ -191,6 +278,11 @@ export default {
       );
     }
 
+
+    // =====================================================
+    // ADMIN BUSINESS
+    // =====================================================
+
     if (
       url.pathname ===
       "/api/admin/businesses"
@@ -213,6 +305,7 @@ export default {
         businessApproveMatch[1]
       );
     }
+
 
     return new Response(
       "Danjion API Dev",
