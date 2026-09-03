@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>단지온 관리자 주민인증 목록</title>
+</head>
+
+<body>
+  <h1>관리자 주민인증 대기목록</h1>
+
+  <p>
+    현재 로그인된 계정이 operator 또는 admin이면
+    pending 주민인증 목록을 조회합니다.
+  </p>
+
+  <button id="loadButton">
+    승인 대기목록 조회
+  </button>
+
+  <pre id="result"></pre>
+
+  <script type="module">
+    import { createAuthClient } from "@neondatabase/auth";
+
+    const AUTH_URL =
+      "https://ep-old-boat-azi7guqq.neonauth.c-3.ap-southeast-1.aws.neon.tech/neondb/auth";
+
+    const auth = createAuthClient(AUTH_URL);
+
+    const loadButton = document.querySelector("#loadButton");
+    const result = document.querySelector("#result");
+
+    loadButton.addEventListener("click", async () => {
+      result.textContent = "조회 중...";
+
+      try {
+        const sessionResult = await auth.getSession();
+        const session = sessionResult?.data ?? sessionResult;
+
+        const jwt = session?.session?.token ?? null;
+
+        if (!jwt || jwt.split(".").length !== 3) {
+          throw new Error(
+            "로그인 세션이 없습니다. operator 계정으로 먼저 로그인하세요."
+          );
+        }
+
+        const response = await fetch(
+          "/api/admin/resident-verifications",
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${jwt}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        result.textContent = JSON.stringify(
+          {
+            http_status: response.status,
+            ...data,
+          },
+          null,
+          2
+        );
+      } catch (error) {
+        result.textContent = JSON.stringify(
+          {
+            ok: false,
+            error: error?.message ?? String(error),
+          },
+          null,
+          2
+        );
+      }
+    });
+  </script>
+</body>
+</html>

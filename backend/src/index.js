@@ -5,6 +5,7 @@ import { handleBuildings } from "./routes/buildings.js";
 import { handleMe } from "./routes/me.js";
 import { handleResidentVerification } from "./routes/resident-verifications.js";
 import { handleMyResidentVerification } from "./routes/my-resident-verification.js";
+import { handleAdminResidentVerificationList } from "./routes/admin-resident-verification-list.js";
 import { handleApproveResidentVerification } from "./routes/admin-resident-verifications.js";
 
 export default {
@@ -37,6 +38,10 @@ export default {
 
     if (url.pathname === "/api/resident-verifications") {
       return handleResidentVerification(request, env);
+    }
+
+    if (url.pathname === "/api/admin/resident-verifications") {
+      return handleAdminResidentVerificationList(request, env);
     }
 
     const approveMatch = url.pathname.match(
