@@ -3,20 +3,53 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>단지온 관리자 주민인증 목록</title>
+  <title>단지온 주민인증 관리자</title>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .verification {
+      border: 1px solid #ccc;
+      padding: 16px;
+      margin: 16px 0;
+    }
+
+    .verification p {
+      margin: 6px 0;
+    }
+
+    button {
+      margin-top: 10px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+
+    .message {
+      white-space: pre-wrap;
+      margin-top: 10px;
+    }
+  </style>
 </head>
 
 <body>
-  <h1>관리자 주민인증 대기목록</h1>
+  <h1>주민인증 관리자</h1>
 
   <p>
-    현재 로그인된 계정이 operator 또는 admin이면
-    pending 주민인증 목록을 조회합니다.
+    operator 또는 admin 계정으로 승인 대기 중인 주민인증을 관리합니다.
   </p>
 
   <button id="loadButton">
-    승인 대기목록 조회
+    승인 대기목록 새로고침
   </button>
+
+  <p id="summary"></p>
+
+  <div id="list"></div>
 
   <pre id="result"></pre>
 
@@ -29,22 +62,32 @@
     const auth = createAuthClient(AUTH_URL);
 
     const loadButton = document.querySelector("#loadButton");
+    const summary = document.querySelector("#summary");
+    const list = document.querySelector("#list");
     const result = document.querySelector("#result");
 
-    loadButton.addEventListener("click", async () => {
-      result.textContent = "조회 중...";
+    async function getJwt() {
+      const sessionResult = await auth.getSession();
+      const session = sessionResult?.data ?? sessionResult;
+
+      const jwt = session?.session?.token ?? null;
+
+      if (!jwt || jwt.split(".").length !== 3) {
+        throw new Error(
+          "로그인 세션이 없습니다. operator 또는 admin 계정으로 로그인하세요."
+        );
+      }
+
+      return jwt;
+    }
+
+    async function loadPendingVerifications() {
+      summary.textContent = "불러오는 중...";
+      list.innerHTML = "";
+      result.textContent = "";
 
       try {
-        const sessionResult = await auth.getSession();
-        const session = sessionResult?.data ?? sessionResult;
-
-        const jwt = session?.session?.token ?? null;
-
-        if (!jwt || jwt.split(".").length !== 3) {
-          throw new Error(
-            "로그인 세션이 없습니다. operator 계정으로 먼저 로그인하세요."
-          );
-        }
+        const jwt = await getJwt();
 
         const response = await fetch(
           "/api/admin/resident-verifications",
@@ -58,15 +101,140 @@
 
         const data = await response.json();
 
-        result.textContent = JSON.stringify(
-          {
-            http_status: response.status,
-            ...data,
-          },
-          null,
-          2
-        );
+        if (!response.ok) {
+          result.textContent = JSON.stringify(
+            {
+              http_status: response.status,
+              ...data,
+            },
+            null,
+            2
+          );
+
+          summary.textContent = "목록 조회 실패";
+          return;
+        }
+
+        const verifications =
+          data?.data?.verifications ?? [];
+
+        summary.textContent =
+          `승인 대기 ${verifications.length}건`;
+
+        if (verifications.length === 0) {
+          list.innerHTML =
+            "<p>현재 승인 대기 중인 주민인증이 없습니다.</p>";
+          return;
+        }
+
+        for (const verification of verifications) {
+          const item = document.createElement("div");
+          item.className = "verification";
+
+          const info = document.createElement("div");
+
+          info.innerHTML = `
+            <p><strong>신청 ID:</strong>
+              ${verification.verification_id}
+            </p>
+
+            <p><strong>신청자:</strong>
+              ${verification.display_name ?? "-"}
+            </p>
+
+            <p><strong>단지온 사용자 ID:</strong>
+              ${verification.user_id}
+            </p>
+
+            <p><strong>주소:</strong>
+              ${verification.building_label}
+              ${verification.unit_number}호
+            </p>
+
+            <p><strong>상태:</strong>
+              ${verification.status}
+            </p>
+
+            <p><strong>인증방식:</strong>
+              ${verification.verification_method}
+            </p>
+
+            <p><strong>신청시각:</strong>
+              ${verification.submitted_at}
+            </p>
+          `;
+
+          const approveButton =
+            document.createElement("button");
+
+          approveButton.textContent = "승인";
+
+          const message =
+            document.createElement("pre");
+
+          message.className = "message";
+
+          approveButton.addEventListener(
+            "click",
+            async () => {
+              approveButton.disabled = true;
+              message.textContent = "승인 처리 중...";
+
+              try {
+                const jwt = await getJwt();
+
+                const response = await fetch(
+                  `/api/admin/resident-verifications/${verification.verification_id}/approve`,
+                  {
+                    method: "POST",
+                    headers: {
+                      Authorization: `Bearer ${jwt}`,
+                    },
+                  }
+                );
+
+                const data = await response.json();
+
+                message.textContent =
+                  JSON.stringify(
+                    {
+                      http_status: response.status,
+                      ...data,
+                    },
+                    null,
+                    2
+                  );
+
+                if (response.ok) {
+                  await loadPendingVerifications();
+                }
+              } catch (error) {
+                message.textContent =
+                  JSON.stringify(
+                    {
+                      ok: false,
+                      error:
+                        error?.message ??
+                        String(error),
+                    },
+                    null,
+                    2
+                  );
+              } finally {
+                approveButton.disabled = false;
+              }
+            }
+          );
+
+          item.appendChild(info);
+          item.appendChild(approveButton);
+          item.appendChild(message);
+
+          list.appendChild(item);
+        }
       } catch (error) {
+        summary.textContent = "목록 조회 실패";
+
         result.textContent = JSON.stringify(
           {
             ok: false,
@@ -76,7 +244,14 @@
           2
         );
       }
-    });
+    }
+
+    loadButton.addEventListener(
+      "click",
+      loadPendingVerifications
+    );
+
+    loadPendingVerifications();
   </script>
 </body>
 </html>
