@@ -1,10 +1,10 @@
-﻿
-import { handleHello } from "./routes/hello.js";
+﻿import { handleHello } from "./routes/hello.js";
 import { handleTestUsers } from "./routes/test-users.js";
 import { handleComplexes } from "./routes/complexes.js";
 import { handleBuildings } from "./routes/buildings.js";
 import { handleMe } from "./routes/me.js";
 import { handleResidentVerification } from "./routes/resident-verifications.js";
+import { handleApproveResidentVerification } from "./routes/admin-resident-verifications.js";
 
 export default {
   async fetch(request, env) {
@@ -29,9 +29,25 @@ export default {
     if (url.pathname === "/api/me") {
       return handleMe(request, env);
     }
+
     if (url.pathname === "/api/resident-verifications") {
       return handleResidentVerification(request, env);
     }
+
+    const approveMatch = url.pathname.match(
+      /^\/api\/admin\/resident-verifications\/(\d+)\/approve$/
+    );
+
+    if (approveMatch) {
+      const verificationId = approveMatch[1];
+
+      return handleApproveResidentVerification(
+        request,
+        env,
+        verificationId
+      );
+    }
+
     return new Response("Danjion API Dev", {
       headers: {
         "Content-Type": "text/plain; charset=UTF-8",
