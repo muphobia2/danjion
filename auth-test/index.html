@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>단지온 Auth Test</title>
+</head>
+<body>
+  <h1>단지온 로그인 테스트</h1>
+
+  <div>
+    <label>
+      이메일
+      <input id="email" type="email" />
+    </label>
+  </div>
+
+  <div>
+    <label>
+      비밀번호
+      <input id="password" type="password" />
+    </label>
+  </div>
+
+  <button id="loginButton">로그인</button>
+
+  <pre id="result"></pre>
+
+<hr />
+
+<h2>주민인증 테스트</h2>
+
+<div>
+  <label>
+    동
+    <input id="building" value="101동" />
+  </label>
+</div>
+
+<div>
+  <label>
+    호
+    <input id="unit" value="1203" />
+  </label>
+</div>
+
+<button id="verificationButton" disabled>
+  주민인증 신청
+</button>
+
+<pre id="verificationResult"></pre>
+
+  <script type="module" src="/src.js"></script>
+</body>
+</html>

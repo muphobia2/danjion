@@ -4,6 +4,7 @@ import { handleTestUsers } from "./routes/test-users.js";
 import { handleComplexes } from "./routes/complexes.js";
 import { handleBuildings } from "./routes/buildings.js";
 import { handleMe } from "./routes/me.js";
+import { handleResidentVerification } from "./routes/resident-verifications.js";
 
 export default {
   async fetch(request, env) {
@@ -27,6 +28,9 @@ export default {
 
     if (url.pathname === "/api/me") {
       return handleMe(request, env);
+    }
+    if (url.pathname === "/api/resident-verifications") {
+      return handleResidentVerification(request, env);
     }
     return new Response("Danjion API Dev", {
       headers: {

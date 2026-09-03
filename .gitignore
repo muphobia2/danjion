@@ -7,3 +7,6 @@ backend/src_before_refactor_*/
 **/desktop.ini
 
 **/desktop.ini
+
+auth-test/node_modules/
+auth-test/.vite/
