@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>단지온 이웃가게 통합 테스트</title>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    section {
+      border: 1px solid #ccc;
+      padding: 18px;
+      margin: 18px 0;
+    }
+
+    input, select, textarea {
+      margin: 4px;
+      padding: 5px;
+    }
+
+    button {
+      margin: 6px;
+      padding: 6px 12px;
+    }
+
+    pre {
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>단지온 이웃가게 통합 테스트</h1>
+
+  <section>
+    <h2>1. 로그인</h2>
+
+    <div>
+      이메일
+      <input id="email" type="email" />
+    </div>
+
+    <div>
+      비밀번호
+      <input id="password" type="password" />
+    </div>
+
+    <button id="loginButton">로그인</button>
+    <button id="logoutButton">로그아웃</button>
+
+    <pre id="loginResult"></pre>
+  </section>
+
+  <section>
+    <h2>2. 이웃가게 등록</h2>
+
+    <div>
+      가게명
+      <input id="businessName" value="단지온 테스트 카페" />
+    </div>
+
+    <div>
+      유형
+      <select id="businessKind">
+        <option value="storefront">실제 매장</option>
+        <option value="professional_service">전문서비스</option>
+        <option value="visit_service">방문서비스</option>
+        <option value="lesson">교육·과외</option>
+        <option value="online_seller">온라인 판매</option>
+        <option value="other">기타</option>
+      </select>
+    </div>
+
+    <div>
+      카테고리
+      <select id="categorySlug">
+        <option value="food-cafe">음식·카페</option>
+        <option value="living-repair">생활·수리</option>
+        <option value="health-beauty">건강·뷰티</option>
+        <option value="education-lesson">교육·과외</option>
+        <option value="professional">전문서비스</option>
+        <option value="visit-service">방문서비스</option>
+        <option value="online-sales">온라인·판매</option>
+        <option value="other">기타</option>
+      </select>
+    </div>
+
+    <div>
+      한줄소개
+      <input
+        id="shortIntro"
+        value="우리 단지 주민이 운영하는 테스트 카페입니다."
+      />
+    </div>
+
+    <div>
+      주소
+      <input
+        id="addressText"
+        value="광주광역시 남구 테스트로 1"
+      />
+    </div>
+
+    <button id="createButton">
+      가게 등록 신청
+    </button>
+
+    <pre id="createResult"></pre>
+  </section>
+
+  <section>
+    <h2>3. 관리자 승인 대기목록</h2>
+
+    <button id="adminListButton">
+      대기 가게 조회
+    </button>
+
+    <div id="adminList"></div>
+
+    <pre id="adminResult"></pre>
+  </section>
+
+  <section>
+    <h2>4. 주민용 이웃가게 목록</h2>
+
+    <button id="residentListButton">
+      승인된 이웃가게 조회
+    </button>
+
+    <pre id="residentResult"></pre>
+  </section>
+
+  <script type="module">
+    import { createAuthClient } from "@neondatabase/auth";
+
+    const AUTH_URL =
+      "https://ep-old-boat-azi7guqq.neonauth.c-3.ap-southeast-1.aws.neon.tech/neondb/auth";
+
+    const auth = createAuthClient(AUTH_URL);
+
+    let currentJwt = null;
+
+    async function getJwt() {
+      if (currentJwt) {
+        return currentJwt;
+      }
+
+      const sessionResult = await auth.getSession();
+      const session = sessionResult?.data ?? sessionResult;
+
+      const jwt = session?.session?.token ?? null;
+
+      if (!jwt || jwt.split(".").length !== 3) {
+        throw new Error("먼저 로그인하세요.");
+      }
+
+      currentJwt = jwt;
+
+      return jwt;
+    }
+
+    // 로그인
+    document
+      .querySelector("#loginButton")
+      .addEventListener("click", async () => {
+        const output =
+          document.querySelector("#loginResult");
+
+        output.textContent = "로그인 중...";
+
+        try {
+          const email =
+            document.querySelector("#email").value.trim();
+
+          const password =
+            document.querySelector("#password").value;
+
+          const result = await auth.signIn.email({
+            email,
+            password,
+          });
+
+          if (result?.error) {
+            throw result.error;
+          }
+
+          currentJwt = null;
+          const jwt = await getJwt();
+
+          const meResponse = await fetch("/api/me", {
+            headers: {
+              Authorization: `Bearer ${jwt}`,
+            },
+          });
+
+          const me = await meResponse.json();
+
+          output.textContent = JSON.stringify(
+            {
+              http_status: meResponse.status,
+              ...me,
+            },
+            null,
+            2
+          );
+        } catch (error) {
+          output.textContent = JSON.stringify(
+            {
+              ok: false,
+              error: error?.message ?? String(error),
+            },
+            null,
+            2
+          );
+        }
+      });
+
+    // 로그아웃
+    document
+      .querySelector("#logoutButton")
+      .addEventListener("click", async () => {
+        await auth.signOut();
+        currentJwt = null;
+
+        document.querySelector(
+          "#loginResult"
+        ).textContent = "로그아웃 완료";
+      });
+
+    // 가게 등록
+    document
+      .querySelector("#createButton")
+      .addEventListener("click", async () => {
+        const output =
+          document.querySelector("#createResult");
+
+        output.textContent = "가게 등록 중...";
+
+        try {
+          const jwt = await getJwt();
+
+          const response = await fetch(
+            "/api/businesses",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${jwt}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                name:
+                  document.querySelector(
+                    "#businessName"
+                  ).value.trim(),
+
+                business_kind:
+                  document.querySelector(
+                    "#businessKind"
+                  ).value,
+
+                category_slug:
+                  document.querySelector(
+                    "#categorySlug"
+                  ).value,
+
+                short_intro:
+                  document.querySelector(
+                    "#shortIntro"
+                  ).value.trim(),
+
+                address_text:
+                  document.querySelector(
+                    "#addressText"
+                  ).value.trim(),
+              }),
+            }
+          );
+
+          const data = await response.json();
+
+          output.textContent = JSON.stringify(
+            {
+              http_status: response.status,
+              ...data,
+            },
+            null,
+            2
+          );
+        } catch (error) {
+          output.textContent = JSON.stringify(
+            {
+              ok: false,
+              error: error?.message ?? String(error),
+            },
+            null,
+            2
+          );
+        }
+      });
+
+    // 관리자 대기목록
+    document
+      .querySelector("#adminListButton")
+      .addEventListener("click", loadAdminList);
+
+    async function loadAdminList() {
+      const list =
+        document.querySelector("#adminList");
+
+      const output =
+        document.querySelector("#adminResult");
+
+      list.innerHTML = "";
+      output.textContent = "조회 중...";
+
+      try {
+        const jwt = await getJwt();
+
+        const response = await fetch(
+          "/api/admin/businesses",
+          {
+            headers: {
+              Authorization: `Bearer ${jwt}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        output.textContent = JSON.stringify(
+          {
+            http_status: response.status,
+            ok: data?.ok ?? false,
+            count: data?.data?.count ?? null,
+          },
+          null,
+          2
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        for (
+          const business of
+          data?.data?.businesses ?? []
+        ) {
+          const card =
+            document.createElement("div");
+
+          card.style.border =
+            "1px solid #999";
+
+          card.style.padding = "12px";
+          card.style.margin = "10px 0";
+
+          const info =
+            document.createElement("pre");
+
+          info.textContent =
+            JSON.stringify(
+              business,
+              null,
+              2
+            );
+
+          const button =
+            document.createElement("button");
+
+          button.textContent =
+            `가게 ${business.id} 승인`;
+
+          const message =
+            document.createElement("pre");
+
+          button.addEventListener(
+            "click",
+            async () => {
+              button.disabled = true;
+
+              try {
+                const jwt =
+                  await getJwt();
+
+                const approveResponse =
+                  await fetch(
+                    `/api/admin/businesses/${business.id}/approve`,
+                    {
+                      method: "POST",
+                      headers: {
+                        Authorization:
+                          `Bearer ${jwt}`,
+                      },
+                    }
+                  );
+
+                const approveData =
+                  await approveResponse.json();
+
+                message.textContent =
+                  JSON.stringify(
+                    {
+                      http_status:
+                        approveResponse.status,
+                      ...approveData,
+                    },
+                    null,
+                    2
+                  );
+
+                if (approveResponse.ok) {
+                  await loadAdminList();
+                }
+              } finally {
+                button.disabled = false;
+              }
+            }
+          );
+
+          card.appendChild(info);
+          card.appendChild(button);
+          card.appendChild(message);
+
+          list.appendChild(card);
+        }
+      } catch (error) {
+        output.textContent = JSON.stringify(
+          {
+            ok: false,
+            error: error?.message ?? String(error),
+          },
+          null,
+          2
+        );
+      }
+    }
+
+    // 주민용 목록
+    document
+      .querySelector("#residentListButton")
+      .addEventListener("click", async () => {
+        const output =
+          document.querySelector("#residentResult");
+
+        output.textContent = "조회 중...";
+
+        try {
+          const jwt = await getJwt();
+
+          const response = await fetch(
+            "/api/businesses",
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${jwt}`,
+              },
+            }
+          );
+
+          const data = await response.json();
+
+          output.textContent = JSON.stringify(
+            {
+              http_status: response.status,
+              ...data,
+            },
+            null,
+            2
+          );
+        } catch (error) {
+          output.textContent = JSON.stringify(
+            {
+              ok: false,
+              error: error?.message ?? String(error),
+            },
+            null,
+            2
+          );
+        }
+      });
+  </script>
+</body>
+</html>

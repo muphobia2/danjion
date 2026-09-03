@@ -7,6 +7,11 @@ import { handleResidentVerification } from "./routes/resident-verifications.js";
 import { handleMyResidentVerification } from "./routes/my-resident-verification.js";
 import { handleAdminResidentVerificationList } from "./routes/admin-resident-verification-list.js";
 import { handleApproveResidentVerification } from "./routes/admin-resident-verifications.js";
+import { handleBusinesses } from "./routes/businesses.js";
+import {
+  handleAdminBusinessList,
+  handleApproveBusiness,
+} from "./routes/admin-businesses.js";
 
 export default {
   async fetch(request, env) {
@@ -44,17 +49,39 @@ export default {
       return handleAdminResidentVerificationList(request, env);
     }
 
-    const approveMatch = url.pathname.match(
+    const residentApproveMatch = url.pathname.match(
       /^\/api\/admin\/resident-verifications\/(\d+)\/approve$/
     );
 
-    if (approveMatch) {
-      const verificationId = approveMatch[1];
-
+    if (residentApproveMatch) {
       return handleApproveResidentVerification(
         request,
         env,
-        verificationId
+        residentApproveMatch[1]
+      );
+    }
+
+    // ----------------------------
+    // 이웃가게
+    // ----------------------------
+
+    if (url.pathname === "/api/businesses") {
+      return handleBusinesses(request, env);
+    }
+
+    if (url.pathname === "/api/admin/businesses") {
+      return handleAdminBusinessList(request, env);
+    }
+
+    const businessApproveMatch = url.pathname.match(
+      /^\/api\/admin\/businesses\/(\d+)\/approve$/
+    );
+
+    if (businessApproveMatch) {
+      return handleApproveBusiness(
+        request,
+        env,
+        businessApproveMatch[1]
       );
     }
 

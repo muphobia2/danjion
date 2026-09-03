@@ -1,0 +1,306 @@
+import { getDb } from "../db/client.js";
+import { verifyAuthToken } from "../auth/verify.js";
+import { json } from "./hello.js";
+
+const BUSINESS_KINDS = new Set([
+  "storefront",
+  "professional_service",
+  "visit_service",
+  "lesson",
+  "online_seller",
+  "other",
+]);
+
+async function getResidentContext(request, env) {
+  const auth = await verifyAuthToken(request, env);
+
+  if (!auth?.sub) {
+    return {
+      error: json({ ok: false, error: "UNAUTHORIZED" }, 401),
+    };
+  }
+
+  const sql = getDb(env.DATABASE_URL);
+
+  const rows = await sql`
+    SELECT
+      u.id AS user_id,
+      c.id AS complex_id
+    FROM users u
+    JOIN user_roles ur
+      ON ur.user_id = u.id
+     AND ur.role = 'resident'
+    JOIN household_members hm
+      ON hm.user_id = u.id
+     AND hm.membership_status = 'verified'
+    JOIN households h
+      ON h.id = hm.household_id
+    JOIN buildings b
+      ON b.id = h.building_id
+    JOIN complexes c
+      ON c.id = b.complex_id
+    WHERE u.auth_provider = 'neon_auth'
+      AND u.auth_subject = ${String(auth.sub)}
+      AND u.account_status = 'active'
+      AND c.slug = 'banglim-myeongji-roadhill'
+    LIMIT 1
+  `;
+
+  if (rows.length === 0) {
+    return {
+      error: json(
+        {
+          ok: false,
+          error: "VERIFIED_RESIDENT_REQUIRED",
+        },
+        403
+      ),
+    };
+  }
+
+  return {
+    sql,
+    userId: rows[0].user_id,
+    complexId: rows[0].complex_id,
+  };
+}
+
+export async function handleBusinesses(request, env) {
+  const context = await getResidentContext(request, env);
+
+  if (context.error) {
+    return context.error;
+  }
+
+  const { sql, userId, complexId } = context;
+
+  // --------------------------------------------------
+  // 주민용 승인 가게 목록
+  // --------------------------------------------------
+
+  if (request.method === "GET") {
+    const rows = await sql`
+      SELECT
+        biz.id,
+        biz.name,
+        biz.business_kind,
+        biz.short_intro,
+        biz.description,
+        biz.address_text,
+        biz.service_area_text,
+        biz.phone,
+        biz.contact_url,
+
+        bc.slug AS category_slug,
+        bc.name AS category_name,
+
+        rel.relationship_type
+
+      FROM businesses biz
+
+      JOIN business_complex_relationships rel
+        ON rel.business_id = biz.id
+       AND rel.complex_id = ${complexId}
+       AND rel.verification_status = 'verified'
+
+      LEFT JOIN business_categories bc
+        ON bc.id = biz.category_id
+
+      WHERE biz.approval_status = 'approved'
+
+      ORDER BY
+        CASE rel.relationship_type
+          WHEN 'current_resident' THEN 1
+          WHEN 'resident_family' THEN 2
+          WHEN 'neighbor_complex_resident' THEN 3
+          WHEN 'local_partner' THEN 4
+          ELSE 99
+        END,
+        COALESCE(bc.sort_order, 999),
+        biz.name
+    `;
+
+    return json({
+      ok: true,
+      data: {
+        count: rows.length,
+        businesses: rows,
+      },
+    });
+  }
+
+  // --------------------------------------------------
+  // 주민의 가게 등록 신청
+  // --------------------------------------------------
+
+  if (request.method === "POST") {
+    let body;
+
+    try {
+      body = await request.json();
+    } catch {
+      return json(
+        {
+          ok: false,
+          error: "INVALID_JSON",
+        },
+        400
+      );
+    }
+
+    const name = String(body?.name ?? "").trim();
+    const businessKind =
+      String(body?.business_kind ?? "").trim();
+    const categorySlug =
+      String(body?.category_slug ?? "other").trim();
+
+    if (!name) {
+      return json(
+        {
+          ok: false,
+          error: "BUSINESS_NAME_REQUIRED",
+        },
+        400
+      );
+    }
+
+    if (!BUSINESS_KINDS.has(businessKind)) {
+      return json(
+        {
+          ok: false,
+          error: "INVALID_BUSINESS_KIND",
+        },
+        400
+      );
+    }
+
+    const created = await sql`
+      WITH selected_category AS (
+        SELECT id
+        FROM business_categories
+        WHERE slug = ${categorySlug}
+          AND is_active = TRUE
+        LIMIT 1
+      ),
+
+      new_business AS (
+        INSERT INTO businesses (
+          name,
+          business_kind,
+          category_id,
+          short_intro,
+          description,
+          address_text,
+          service_area_text,
+          phone,
+          contact_url,
+          approval_status
+        )
+        SELECT
+          ${name},
+          ${businessKind},
+          id,
+          ${body?.short_intro ?? null},
+          ${body?.description ?? null},
+          ${body?.address_text ?? null},
+          ${body?.service_area_text ?? null},
+          ${body?.phone ?? null},
+          ${body?.contact_url ?? null},
+          'pending'
+        FROM selected_category
+        RETURNING
+          id,
+          name,
+          business_kind,
+          category_id,
+          approval_status,
+          created_at
+      ),
+
+      owner_link AS (
+        INSERT INTO business_owners (
+          business_id,
+          user_id,
+          owner_role
+        )
+        SELECT
+          id,
+          ${userId},
+          'owner'
+        FROM new_business
+        RETURNING business_id
+      ),
+
+      owner_role AS (
+        INSERT INTO user_roles (
+          user_id,
+          role
+        )
+        SELECT
+          ${userId},
+          'business_owner'
+        FROM new_business
+        ON CONFLICT (user_id, role)
+        DO NOTHING
+      ),
+
+      complex_relationship AS (
+        INSERT INTO business_complex_relationships (
+          business_id,
+          complex_id,
+          relationship_type,
+          verified_resident_user_id,
+          verification_status,
+          verified_at
+        )
+        SELECT
+          id,
+          ${complexId},
+          'current_resident',
+          ${userId},
+          'verified',
+          NOW()
+        FROM new_business
+        RETURNING business_id
+      )
+
+      SELECT
+        nb.id,
+        nb.name,
+        nb.business_kind,
+        nb.approval_status,
+        nb.created_at,
+        bc.slug AS category_slug,
+        bc.name AS category_name
+      FROM new_business nb
+      JOIN business_categories bc
+        ON bc.id = nb.category_id
+    `;
+
+    if (created.length === 0) {
+      return json(
+        {
+          ok: false,
+          error: "INVALID_CATEGORY",
+        },
+        400
+      );
+    }
+
+    return json(
+      {
+        ok: true,
+        data: created[0],
+      },
+      201
+    );
+  }
+
+  return json(
+    {
+      ok: false,
+      error: "METHOD_NOT_ALLOWED",
+    },
+    405
+  );
+}
