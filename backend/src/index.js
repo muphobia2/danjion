@@ -4,6 +4,7 @@ import { handleComplexes } from "./routes/complexes.js";
 import { handleBuildings } from "./routes/buildings.js";
 import { handleMe } from "./routes/me.js";
 import { handleResidentVerification } from "./routes/resident-verifications.js";
+import { handleMyResidentVerification } from "./routes/my-resident-verification.js";
 import { handleApproveResidentVerification } from "./routes/admin-resident-verifications.js";
 
 export default {
@@ -28,6 +29,10 @@ export default {
 
     if (url.pathname === "/api/me") {
       return handleMe(request, env);
+    }
+
+    if (url.pathname === "/api/me/resident-verification") {
+      return handleMyResidentVerification(request, env);
     }
 
     if (url.pathname === "/api/resident-verifications") {
