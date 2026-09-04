@@ -66,6 +66,32 @@ import {
   handlePrivateShopApplicationFile,
 } from "./routes/business-files.js";
 
+import {
+  handleComplexLanding,
+  handlePublicContentList,
+  handlePublicContentDetail,
+  handleAdminContentCreate,
+  handleAdminContentUpdate,
+  handleResidentNewsSubmit,
+  handleMyResidentNewsSubmissions,
+  handleAdminResidentNewsSubmissions,
+  handleAdminResidentNewsAction,
+  handleResidentNewsReaction,
+} from "./routes/complex-contents.js";
+
+import {
+  handleTalkList,
+  handleTalkDetail,
+  handleTalkCreate,
+  handleTalkUpdate,
+  handleTalkDelete,
+  handleTalkComments,
+  handleTalkCommentCreate,
+  handleTalkCommentMutation,
+  handleTalkReaction,
+  handleAdminTalkModeration,
+} from "./routes/talk.js";
+
 
 export default {
   async fetch(request, env) {
@@ -335,6 +361,328 @@ export default {
         env,
         adminApplicationActionMatch[1],
         adminApplicationActionMatch[2]
+      );
+    }
+
+
+    // =====================================================
+    // PHASE 4 — COMPLEX CONTENT (our-complex)
+    // 단지온 공지 / 아파트소식 / 주민소식
+    // =====================================================
+
+    if (
+      url.pathname ===
+      "/api/complex-content"
+    ) {
+      return handleComplexLanding(
+        request,
+        env
+      );
+    }
+
+    if (
+      url.pathname ===
+      "/api/notices"
+    ) {
+      return handlePublicContentList(
+        request,
+        env,
+        "danjion_notice"
+      );
+    }
+
+    if (
+      url.pathname ===
+      "/api/apartment-news"
+    ) {
+      return handlePublicContentList(
+        request,
+        env,
+        "apartment_news"
+      );
+    }
+
+    if (
+      url.pathname ===
+      "/api/resident-news"
+    ) {
+      return handlePublicContentList(
+        request,
+        env,
+        "resident_news"
+      );
+    }
+
+    const noticeDetailMatch =
+      url.pathname.match(
+        /^\/api\/notices\/([^/]+)$/
+      );
+
+    if (
+      noticeDetailMatch
+    ) {
+      return handlePublicContentDetail(
+        request,
+        env,
+        "danjion_notice",
+        decodeURIComponent(
+          noticeDetailMatch[1]
+        )
+      );
+    }
+
+    const apartmentNewsDetailMatch =
+      url.pathname.match(
+        /^\/api\/apartment-news\/([^/]+)$/
+      );
+
+    if (
+      apartmentNewsDetailMatch
+    ) {
+      return handlePublicContentDetail(
+        request,
+        env,
+        "apartment_news",
+        decodeURIComponent(
+          apartmentNewsDetailMatch[1]
+        )
+      );
+    }
+
+    const residentNewsDetailMatch =
+      url.pathname.match(
+        /^\/api\/resident-news\/(\d+)$/
+      );
+
+    if (
+      residentNewsDetailMatch
+    ) {
+      return handlePublicContentDetail(
+        request,
+        env,
+        "resident_news",
+        residentNewsDetailMatch[1]
+      );
+    }
+
+    const residentNewsReactionMatch =
+      url.pathname.match(
+        /^\/api\/resident-news\/(\d+)\/reactions$/
+      );
+
+    if (
+      residentNewsReactionMatch
+    ) {
+      return handleResidentNewsReaction(
+        request,
+        env,
+        residentNewsReactionMatch[1]
+      );
+    }
+
+    if (
+      url.pathname ===
+      "/api/resident-news-submissions"
+    ) {
+      return handleResidentNewsSubmit(
+        request,
+        env
+      );
+    }
+
+    if (
+      url.pathname ===
+      "/api/me/resident-news-submissions"
+    ) {
+      return handleMyResidentNewsSubmissions(
+        request,
+        env
+      );
+    }
+
+    if (
+      url.pathname ===
+      "/api/admin/contents"
+    ) {
+      return handleAdminContentCreate(
+        request,
+        env
+      );
+    }
+
+    const adminContentMatch =
+      url.pathname.match(
+        /^\/api\/admin\/contents\/(\d+)$/
+      );
+
+    if (
+      adminContentMatch
+    ) {
+      return handleAdminContentUpdate(
+        request,
+        env,
+        adminContentMatch[1]
+      );
+    }
+
+    if (
+      url.pathname ===
+      "/api/admin/resident-news-submissions"
+    ) {
+      return handleAdminResidentNewsSubmissions(
+        request,
+        env
+      );
+    }
+
+    const adminResidentNewsActionMatch =
+      url.pathname.match(
+        /^\/api\/admin\/resident-news-submissions\/(\d+)\/(needs-more-info|reject|approve)$/
+      );
+
+    if (
+      adminResidentNewsActionMatch
+    ) {
+      return handleAdminResidentNewsAction(
+        request,
+        env,
+        adminResidentNewsActionMatch[1],
+        adminResidentNewsActionMatch[2]
+      );
+    }
+
+
+    // =====================================================
+    // PHASE 4 — TALK (이웃대화)
+    // list: guest / detail+write: resident
+    // =====================================================
+
+    if (
+      url.pathname ===
+      "/api/talk"
+    ) {
+      if (
+        request.method ===
+        "POST"
+      ) {
+        return handleTalkCreate(
+          request,
+          env
+        );
+      }
+
+      return handleTalkList(
+        request,
+        env
+      );
+    }
+
+    const talkCommentsMatch =
+      url.pathname.match(
+        /^\/api\/talk\/(\d+)\/comments$/
+      );
+
+    if (
+      talkCommentsMatch
+    ) {
+      if (
+        request.method ===
+        "POST"
+      ) {
+        return handleTalkCommentCreate(
+          request,
+          env,
+          talkCommentsMatch[1]
+        );
+      }
+
+      return handleTalkComments(
+        request,
+        env,
+        talkCommentsMatch[1]
+      );
+    }
+
+    const talkReactionMatch =
+      url.pathname.match(
+        /^\/api\/talk\/(\d+)\/reactions$/
+      );
+
+    if (
+      talkReactionMatch
+    ) {
+      return handleTalkReaction(
+        request,
+        env,
+        talkReactionMatch[1]
+      );
+    }
+
+    const talkDetailMatch =
+      url.pathname.match(
+        /^\/api\/talk\/(\d+)$/
+      );
+
+    if (
+      talkDetailMatch
+    ) {
+      if (
+        request.method ===
+        "PATCH"
+      ) {
+        return handleTalkUpdate(
+          request,
+          env,
+          talkDetailMatch[1]
+        );
+      }
+
+      if (
+        request.method ===
+        "DELETE"
+      ) {
+        return handleTalkDelete(
+          request,
+          env,
+          talkDetailMatch[1]
+        );
+      }
+
+      return handleTalkDetail(
+        request,
+        env,
+        talkDetailMatch[1]
+      );
+    }
+
+    const commentMatch =
+      url.pathname.match(
+        /^\/api\/comments\/(\d+)$/
+      );
+
+    if (
+      commentMatch
+    ) {
+      return handleTalkCommentMutation(
+        request,
+        env,
+        commentMatch[1]
+      );
+    }
+
+    const adminTalkMatch =
+      url.pathname.match(
+        /^\/api\/admin\/talk-posts\/(\d+)\/(hide|show)$/
+      );
+
+    if (
+      adminTalkMatch
+    ) {
+      return handleAdminTalkModeration(
+        request,
+        env,
+        adminTalkMatch[1],
+        adminTalkMatch[2]
       );
     }
 

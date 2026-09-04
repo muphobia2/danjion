@@ -1,0 +1,1680 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  >
+  <title>단지온 PHASE 4 우리단지 E2E</title>
+
+  <style>
+    body{
+      font-family:sans-serif;
+      max-width:1000px;
+      margin:30px auto;
+      padding:0 20px;
+    }
+
+    section{
+      border:1px solid #ccc;
+      padding:18px;
+      margin:18px 0;
+    }
+
+    input{
+      padding:8px;
+      margin:4px;
+      min-width:260px;
+    }
+
+    button{
+      padding:10px 14px;
+      margin:5px;
+    }
+
+    pre{
+      background:#f5f5f5;
+      padding:13px;
+      white-space:pre-wrap;
+      overflow-wrap:anywhere;
+    }
+
+    .note{
+      background:#fff8d8;
+      padding:12px;
+    }
+
+    .danger{
+      background:#ffe3e3;
+      padding:12px;
+      border:1px solid #d33;
+    }
+
+    .local{
+      background:#e3ffe3;
+      padding:12px;
+      border:1px solid #2a2;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>단지온 PHASE 4 우리단지 E2E</h1>
+
+<p class="note">
+  비밀번호와 JWT는 화면에 출력하지 않습니다.
+  순서: GUEST → user 7(주민) → user 1(관리자) → user 7(삭제).
+  단계별 신청/글 ID는 sessionStorage에만 임시 저장합니다.
+</p>
+
+
+<section>
+  <h2>0. 실행 모드</h2>
+
+  <p class="local">
+    기본값은 LOCAL입니다.
+    LOCAL은 <code>/local-api/...</code>를 로컬 Worker로,
+    PRODUCTION은 <code>/prod-api/...</code>를 실제 배포 Worker로
+    중계합니다 (same-origin, CORS 없음).
+  </p>
+
+  <label>
+    <input
+      type="radio"
+      name="targetMode"
+      value="local"
+      checked
+    >
+    LOCAL (/local-api)
+  </label>
+
+  <label>
+    <input
+      type="radio"
+      name="targetMode"
+      value="production"
+    >
+    PRODUCTION (/prod-api)
+  </label>
+
+  <p class="danger">
+    PRODUCTION 모드에서 글쓰기·삭제·승인은 실제 데이터를 만듭니다.
+    확인란 없이 mutation 버튼은 차단됩니다.
+  </p>
+
+  <label>
+    <input
+      id="prodConfirm"
+      type="checkbox"
+    >
+    실제 Worker에 테스트 데이터를 생성합니다
+  </label>
+
+  <pre id="baseResult"></pre>
+</section>
+
+
+<section>
+  <h2>1. 로그인</h2>
+
+  <input
+    id="email"
+    type="email"
+    placeholder="이메일"
+  >
+
+  <input
+    id="password"
+    type="password"
+    placeholder="비밀번호"
+  >
+
+  <button id="login">
+    로그인
+  </button>
+
+  <button id="logout">
+    로그아웃
+  </button>
+
+  <pre id="loginResult"></pre>
+</section>
+
+
+<section>
+  <h2>2. GUEST 읽기 (로그아웃 상태 권장)</h2>
+
+  <p>
+    공지·아파트소식·주민소식 목록/상세, 이웃대화 목록은 200.
+    이웃대화 상세·글쓰기·댓글·반응은 401/403.
+  </p>
+
+  <button id="runGuest">
+    GUEST 테스트 실행
+  </button>
+
+  <pre id="guestResult"></pre>
+</section>
+
+
+<section>
+  <h2>3. user 7 — 주민 작성 플로우</h2>
+
+  <p>
+    user 7 로그인 후 실행.
+    talk 작성→수정→댓글→답글→반응→중복 반응→2단 답글 차단→
+    주민소식 신청 2건(승인용/거절용).
+  </p>
+
+  <button id="runResident">
+    주민 플로우 실행
+  </button>
+
+  <pre id="residentResult"></pre>
+</section>
+
+
+<section>
+  <h2>4. user 1 — 관리자 심사 + 권한 차단</h2>
+
+  <p>
+    user 7 로그아웃 → user 1 로그인 후 실행.
+    user 7 글에 대한 일반 수정/삭제 403 확인,
+    제보 승인/거절, 승인글 공개 확인.
+  </p>
+
+  <button id="runAdmin">
+    관리자 플로우 실행
+  </button>
+
+  <pre id="adminResult"></pre>
+</section>
+
+
+<section>
+  <h2>5. user 7 — 본인 글 삭제</h2>
+
+  <p>
+    user 1 로그아웃 → user 7 로그인 후 실행.
+  </p>
+
+  <button id="runDelete">
+    삭제 플로우 실행
+  </button>
+
+  <pre id="deleteResult"></pre>
+</section>
+
+
+<section>
+  <h2>6. 공개 응답 개인정보 스캔</h2>
+
+  <p>
+    로그인 없이 공개 목록/상세를 조회하고
+    금지 키가 없는지 확인합니다.
+  </p>
+
+  <button id="runPrivacy">
+    개인정보 스캔 실행
+  </button>
+
+  <pre id="privacyResult"></pre>
+</section>
+
+
+<script type="module">
+
+import {
+  createAuthClient
+} from "@neondatabase/auth";
+
+
+const AUTH_URL =
+  "https://ep-old-boat-azi7guqq.neonauth.c-3.ap-southeast-1.aws.neon.tech/neondb/auth";
+
+const auth =
+  createAuthClient(AUTH_URL);
+
+let jwt = null;
+
+
+function show(
+  selector,
+  value
+) {
+  document
+    .querySelector(selector)
+    .textContent =
+      JSON.stringify(
+        value,
+        null,
+        2
+      );
+}
+
+
+function getMode() {
+  const selected =
+    document.querySelector(
+      'input[name="targetMode"]:checked'
+    );
+
+  return selected?.value === "production"
+    ? "production"
+    : "local";
+}
+
+
+function getPrefix() {
+  return getMode() === "production"
+    ? "/prod-api"
+    : "/local-api";
+}
+
+
+function requireProdConfirm() {
+  if (
+    getMode() === "production" &&
+    !document.querySelector(
+      "#prodConfirm"
+    ).checked
+  ) {
+    throw new Error(
+      "PRODUCTION 모드에서는 확인란을 먼저 켜야 합니다."
+    );
+  }
+}
+
+
+function toLocal(path) {
+  return String(path).replace(
+    /^\/api/,
+    getPrefix()
+  );
+}
+
+
+function refreshTarget() {
+  show(
+    "#baseResult",
+    {
+      mode:getMode(),
+      target:getPrefix() + "/..."
+    }
+  );
+}
+
+
+async function getJwt() {
+  if (jwt) {
+    return jwt;
+  }
+
+  const sessionResult =
+    await auth.getSession();
+
+  const session =
+    sessionResult?.data ??
+    sessionResult;
+
+  jwt =
+    session?.session?.token ??
+    null;
+
+  if (
+    !jwt ||
+    jwt.split(".").length !== 3
+  ) {
+    throw new Error(
+      "먼저 로그인하세요."
+    );
+  }
+
+  return jwt;
+}
+
+
+async function api(
+  path,
+  options = {}
+) {
+  const token =
+    await getJwt();
+
+  const isForm =
+    options.body instanceof FormData;
+
+  const response =
+    await fetch(
+      toLocal(path),
+      {
+        ...options,
+
+        headers: {
+          Authorization:
+            `Bearer ${token}`,
+
+          ...(!isForm && options.body
+            ? {
+                "Content-Type":
+                  "application/json"
+              }
+            : {}),
+
+          ...(options.headers ?? {})
+        }
+      }
+    );
+
+  let data;
+
+  try {
+    data =
+      await response.json();
+  } catch {
+    data = {
+      ok:false,
+      error:"NON_JSON_RESPONSE"
+    };
+  }
+
+  return {
+    http_status:
+      response.status,
+
+    ...data
+  };
+}
+
+
+async function guestFetch(path) {
+  const response =
+    await fetch(toLocal(path));
+
+  let data;
+
+  try {
+    data =
+      await response.json();
+  } catch {
+    data = {
+      ok:false,
+      error:"NON_JSON_RESPONSE"
+    };
+  }
+
+  return {
+    http_status:
+      response.status,
+
+    ...data
+  };
+}
+
+
+function assertSuccess(
+  result,
+  label
+) {
+  if (
+    result.http_status < 200 ||
+    result.http_status >= 300 ||
+    result.ok !== true
+  ) {
+    throw new Error(
+      `${label} 실패: ` +
+      JSON.stringify(result)
+    );
+  }
+
+  return result;
+}
+
+
+async function requireUserId(
+  expected
+) {
+  const me =
+    assertSuccess(
+      await api("/api/me"),
+      "내정보 확인"
+    );
+
+  const actual =
+    String(
+      me.data?.user?.id
+    );
+
+  if (
+    actual !==
+    String(expected)
+  ) {
+    throw new Error(
+      `현재 user ${actual} 입니다. user ${expected} 계정으로 로그인하세요.`
+    );
+  }
+
+  return me;
+}
+
+
+document
+  .querySelectorAll(
+    'input[name="targetMode"]'
+  )
+  .forEach(radio => {
+    radio.addEventListener(
+      "change",
+      refreshTarget
+    );
+  });
+
+refreshTarget();
+
+
+// ==========================================================
+// 1. LOGIN
+// ==========================================================
+
+document
+  .querySelector("#login")
+  .addEventListener(
+    "click",
+    async () => {
+
+      try {
+
+        const result =
+          await auth.signIn.email({
+            email:
+              document
+                .querySelector("#email")
+                .value
+                .trim(),
+
+            password:
+              document
+                .querySelector("#password")
+                .value
+          });
+
+        if (result?.error) {
+          throw result.error;
+        }
+
+        jwt = null;
+
+        const me =
+          await api("/api/me");
+
+        show(
+          "#loginResult",
+          {
+            ok:
+              me.ok,
+
+            http_status:
+              me.http_status,
+
+            user: {
+              id:
+                me.data?.user?.id,
+
+              display_name:
+                me.data?.user
+                  ?.display_name
+            }
+          }
+        );
+
+      } catch (error) {
+
+        show(
+          "#loginResult",
+          {
+            ok:false,
+            error:
+              error?.message ??
+              String(error)
+          }
+        );
+      }
+    }
+  );
+
+
+document
+  .querySelector("#logout")
+  .addEventListener(
+    "click",
+    async () => {
+
+      await auth.signOut();
+
+      jwt = null;
+
+      show(
+        "#loginResult",
+        {
+          logout_ok:true
+        }
+      );
+    }
+  );
+
+
+// ==========================================================
+// 2. GUEST
+// ==========================================================
+
+document
+  .querySelector("#runGuest")
+  .addEventListener(
+    "click",
+    async () => {
+
+      const report = {
+        steps:[]
+      };
+
+      async function expectOk(
+        path,
+        label
+      ) {
+        const result =
+          await guestFetch(path);
+
+        assertSuccess(
+          result,
+          label
+        );
+
+        report.steps.push({
+          step:label,
+          pass:true
+        });
+
+        return result;
+      }
+
+      async function expectBlocked(
+        path,
+        options,
+        label,
+        codes
+      ) {
+        const result =
+          await guestFetch(path);
+
+        void options;
+
+        if (
+          !codes.includes(
+            result.http_status
+          )
+        ) {
+          throw new Error(
+            `${label} 차단 실패: ` +
+            JSON.stringify(result)
+          );
+        }
+
+        report.steps.push({
+          step:label,
+          pass:true,
+          http_status:
+            result.http_status
+        });
+
+        return result;
+      }
+
+      try {
+
+        const notices =
+          await expectOk(
+            "/api/notices",
+            "guest_notices_list"
+          );
+
+        if (
+          !Array.isArray(
+            notices.data?.items
+          ) ||
+          notices.data.items.length < 8
+        ) {
+          throw new Error(
+            "단지온 공지가 8건 미만입니다."
+          );
+        }
+
+        const firstNoticeId =
+          notices.data.items[0].id;
+
+        await expectOk(
+          `/api/notices/${firstNoticeId}`,
+          "guest_notice_detail"
+        );
+
+        await expectOk(
+          "/api/apartment-news",
+          "guest_apartment_list"
+        );
+
+        const apartment =
+          await guestFetch(
+            "/api/apartment-news"
+          );
+
+        const chairPost =
+          (apartment.data?.items ?? [])
+            .find(
+              item =>
+                String(
+                  item.slug ?? ""
+                ).includes("a01")
+            );
+
+        if (!chairPost) {
+          throw new Error(
+            "회장 인사를 찾지 못했습니다."
+          );
+        }
+
+        await expectOk(
+          `/api/apartment-news/${chairPost.id}`,
+          "guest_apartment_detail"
+        );
+
+        await expectOk(
+          "/api/resident-news",
+          "guest_resident_list"
+        );
+
+        const resident =
+          await guestFetch(
+            "/api/resident-news"
+          );
+
+        const firstResident =
+          (resident.data?.items ?? [])[0];
+
+        if (!firstResident) {
+          throw new Error(
+            "주민소식이 없습니다."
+          );
+        }
+
+        await expectOk(
+          `/api/resident-news/${firstResident.id}`,
+          "guest_resident_detail"
+        );
+
+        const talk =
+          await expectOk(
+            "/api/talk",
+            "guest_talk_list"
+          );
+
+        if (
+          (talk.data?.posts ?? [])
+            .length < 20
+        ) {
+          throw new Error(
+            "이웃대화 목록이 부족합니다."
+          );
+        }
+
+        const firstPostId =
+          talk.data.posts[0].id;
+
+        await expectBlocked(
+          `/api/talk/${firstPostId}`,
+          {},
+          "guest_talk_detail_blocked",
+          [401, 403]
+        );
+
+        const blockedWrite =
+          await guestFetch("/api/talk");
+
+        void blockedWrite;
+
+        // POST without auth must not succeed.
+        const writeAttempt =
+          await (
+            await fetch(
+              toLocal("/api/talk"),
+              {
+                method:"POST",
+                headers: {
+                  "Content-Type":
+                    "application/json"
+                },
+                body: JSON.stringify({
+                  category:"question",
+                  title:"x",
+                  body:"x"
+                })
+              }
+            )
+          ).json().catch(() => ({
+            ok:false
+          }));
+
+        if (writeAttempt.ok === true) {
+          throw new Error(
+            "비인증 글쓰기가 차단되지 않았습니다."
+          );
+        }
+
+        report.steps.push({
+          step:"guest_talk_write_blocked",
+          pass:true
+        });
+
+        report.result =
+          "PHASE4_GUEST_PASS";
+
+        show(
+          "#guestResult",
+          report
+        );
+
+      } catch (error) {
+
+        report.result =
+          "PHASE4_GUEST_FAIL";
+
+        report.error =
+          error?.message ??
+          String(error);
+
+        show(
+          "#guestResult",
+          report
+        );
+      }
+    }
+  );
+
+
+// ==========================================================
+// 3. RESIDENT (user 7)
+// ==========================================================
+
+document
+  .querySelector("#runResident")
+  .addEventListener(
+    "click",
+    async () => {
+
+      const report = {
+        steps:[]
+      };
+
+      try {
+
+        requireProdConfirm();
+
+        await requireUserId(7);
+
+        const tag =
+          getMode() === "production"
+            ? "[PROD-P4]"
+            : "[LOCAL-P4]";
+
+        const suffix =
+          String(Date.now())
+            .slice(-6);
+
+
+        // TALK CREATE
+        const created =
+          assertSuccess(
+            await api(
+              "/api/talk",
+              {
+                method:"POST",
+                body:JSON.stringify({
+                  category:"question",
+                  title:
+                    `${tag} 테스트 질문 ${suffix}`,
+                  body:
+                    "PHASE4 주민 플로우 검증용 글입니다."
+                })
+              }
+            ),
+            "talk create"
+          );
+
+        const postId =
+          String(created.data.id);
+
+        sessionStorage.setItem(
+          "ph4_post_id",
+          postId
+        );
+
+        report.steps.push({
+          step:"talk_create",
+          pass:true,
+          post_id:postId
+        });
+
+
+        // OWN UPDATE
+        await assertSuccess(
+          await api(
+            `/api/talk/${postId}`,
+            {
+              method:"PATCH",
+              body:JSON.stringify({
+                body:
+                  "PHASE4 주민 플로우 검증용 글입니다. (수정됨)"
+              })
+            }
+          ),
+          "talk own update"
+        );
+
+        report.steps.push({
+          step:"talk_own_update",
+          pass:true
+        });
+
+
+        // COMMENT
+        const comment =
+          assertSuccess(
+            await api(
+              `/api/talk/${postId}/comments`,
+              {
+                method:"POST",
+                body:JSON.stringify({
+                  body:"테스트 댓글입니다."
+                })
+              }
+            ),
+            "comment create"
+          );
+
+        const commentId =
+          String(comment.data.id);
+
+        sessionStorage.setItem(
+          "ph4_comment_id",
+          commentId
+        );
+
+        report.steps.push({
+          step:"comment_create",
+          pass:true
+        });
+
+
+        // REPLY (1 level)
+        const reply =
+          assertSuccess(
+            await api(
+              `/api/talk/${postId}/comments`,
+              {
+                method:"POST",
+                body:JSON.stringify({
+                  body:"테스트 답글입니다.",
+                  parent_comment_id:
+                    commentId
+                })
+              }
+            ),
+            "reply create"
+          );
+
+        report.steps.push({
+          step:"reply_one_level",
+          pass:true,
+          reply_id:reply.data.id
+        });
+
+
+        // 2ND LEVEL REPLY must fail
+        const nested =
+          await api(
+            `/api/talk/${postId}/comments`,
+            {
+              method:"POST",
+              body:JSON.stringify({
+                body:"2단 답글 시도",
+                parent_comment_id:
+                  String(reply.data.id)
+              })
+            }
+          );
+
+        if (
+          nested.http_status !== 400 ||
+          nested.error !==
+            "NESTED_REPLY_NOT_ALLOWED"
+        ) {
+          throw new Error(
+            "2단 답글이 차단되지 않았습니다: " +
+            JSON.stringify(nested)
+          );
+        }
+
+        report.steps.push({
+          step:"second_level_reply_blocked",
+          pass:true
+        });
+
+
+        // REACTION add
+        const reacted =
+          assertSuccess(
+            await api(
+              `/api/talk/${postId}/reactions`,
+              {
+                method:"PUT",
+                body:JSON.stringify({
+                  reaction_type:"empathy"
+                })
+              }
+            ),
+            "reaction add"
+          );
+
+        if (
+          reacted.data?.reactions
+            ?.empathy !== 1
+        ) {
+          throw new Error(
+            "반응 카운트가 1이 아닙니다."
+          );
+        }
+
+        report.steps.push({
+          step:"reaction_add",
+          pass:true
+        });
+
+
+        // DUPLICATE reaction must not inflate
+        const duplicate =
+          assertSuccess(
+            await api(
+              `/api/talk/${postId}/reactions`,
+              {
+                method:"PUT",
+                body:JSON.stringify({
+                  reaction_type:"empathy"
+                })
+              }
+            ),
+            "reaction duplicate"
+          );
+
+        if (
+          duplicate.data?.reactions
+            ?.empathy !== 1
+        ) {
+          throw new Error(
+            "중복 반응으로 카운트가 증가했습니다."
+          );
+        }
+
+        report.steps.push({
+          step:"reaction_duplicate_protected",
+          pass:true
+        });
+
+
+        // REACTION remove
+        await assertSuccess(
+          await api(
+            `/api/talk/${postId}/reactions?reaction_type=empathy`,
+            { method:"DELETE" }
+          ),
+          "reaction remove"
+        );
+
+        report.steps.push({
+          step:"reaction_remove",
+          pass:true
+        });
+
+
+        // RESIDENT NEWS submissions (approve + reject targets)
+        async function submitNews(
+          kind
+        ) {
+          const submitted =
+            assertSuccess(
+              await api(
+                "/api/resident-news-submissions",
+                {
+                  method:"POST",
+                  body:JSON.stringify({
+                    title:
+                      `${tag} 주민소식 ${kind} ${suffix}`,
+                    body:
+                      "PHASE4 주민소식 심사 검증용 제보입니다."
+                  })
+                }
+              ),
+              `news submit ${kind}`
+            );
+
+          return String(
+            submitted.data.id
+          );
+        }
+
+        const approveId =
+          await submitNews("approve");
+
+        const rejectId =
+          await submitNews("reject");
+
+        sessionStorage.setItem(
+          "ph4_approve_id",
+          approveId
+        );
+
+        sessionStorage.setItem(
+          "ph4_reject_id",
+          rejectId
+        );
+
+        report.steps.push({
+          step:"news_submissions_created",
+          pass:true,
+          approve_id:approveId,
+          reject_id:rejectId
+        });
+
+
+        // NOT PUBLIC before approval
+        const publicList =
+          await guestFetch(
+            "/api/resident-news"
+          );
+
+        const leaked =
+          (publicList.data?.items ?? [])
+            .some(
+              item =>
+                String(item.id) ===
+                  approveId ||
+                String(item.id) ===
+                  rejectId
+            );
+
+        if (leaked) {
+          throw new Error(
+            "승인 전 제보가 공개됐습니다."
+          );
+        }
+
+        report.steps.push({
+          step:"unapproved_not_public",
+          pass:true
+        });
+
+
+        report.result =
+          "PHASE4_RESIDENT_PASS";
+
+        show(
+          "#residentResult",
+          report
+        );
+
+      } catch (error) {
+
+        report.result =
+          "PHASE4_RESIDENT_FAIL";
+
+        report.error =
+          error?.message ??
+          String(error);
+
+        show(
+          "#residentResult",
+          report
+        );
+      }
+    }
+  );
+
+
+// ==========================================================
+// 4. ADMIN (user 1)
+// ==========================================================
+
+document
+  .querySelector("#runAdmin")
+  .addEventListener(
+    "click",
+    async () => {
+
+      const report = {
+        steps:[]
+      };
+
+      try {
+
+        requireProdConfirm();
+
+        await requireUserId(1);
+
+        const postId =
+          sessionStorage.getItem(
+            "ph4_post_id"
+          );
+
+        const approveId =
+          sessionStorage.getItem(
+            "ph4_approve_id"
+          );
+
+        const rejectId =
+          sessionStorage.getItem(
+            "ph4_reject_id"
+          );
+
+        if (
+          !postId ||
+          !approveId ||
+          !rejectId
+        ) {
+          throw new Error(
+            "먼저 user 7 주민 플로우를 실행하세요."
+          );
+        }
+
+
+        // OTHER USER post update must 403
+        const otherUpdate =
+          await api(
+            `/api/talk/${postId}`,
+            {
+              method:"PATCH",
+              body:JSON.stringify({
+                body:"타인 수정 시도"
+              })
+            }
+          );
+
+        if (
+          otherUpdate.http_status !==
+            403 ||
+          otherUpdate.error !==
+            "FORBIDDEN"
+        ) {
+          throw new Error(
+            "타인 글 수정이 차단되지 않았습니다: " +
+            JSON.stringify(otherUpdate)
+          );
+        }
+
+        report.steps.push({
+          step:"other_user_update_blocked",
+          pass:true
+        });
+
+
+        // OTHER USER post delete must 403
+        const otherDelete =
+          await api(
+            `/api/talk/${postId}`,
+            { method:"DELETE" }
+          );
+
+        if (
+          otherDelete.http_status !==
+            403 ||
+          otherDelete.error !==
+            "FORBIDDEN"
+        ) {
+          throw new Error(
+            "타인 글 삭제가 차단되지 않았습니다: " +
+            JSON.stringify(otherDelete)
+          );
+        }
+
+        report.steps.push({
+          step:"other_user_delete_blocked",
+          pass:true
+        });
+
+
+        // OTHER USER comment update must 403
+        const commentId =
+          sessionStorage.getItem(
+            "ph4_comment_id"
+          );
+
+        if (commentId) {
+          const otherComment =
+            await api(
+              `/api/comments/${commentId}`,
+              {
+                method:"PATCH",
+                body:JSON.stringify({
+                  body:"타인 댓글 수정 시도"
+                })
+              }
+            );
+
+          if (
+            otherComment.http_status !==
+              403
+          ) {
+            throw new Error(
+              "타인 댓글 수정이 차단되지 않았습니다."
+            );
+          }
+
+          report.steps.push({
+            step:"other_user_comment_blocked",
+            pass:true
+          });
+        }
+
+
+        // APPROVE submission
+        const approved =
+          assertSuccess(
+            await api(
+              `/api/admin/resident-news-submissions/${approveId}/approve`,
+              { method:"POST", body:"{}" }
+            ),
+            "news approve"
+          );
+
+        const contentId =
+          String(
+            approved.data.content_id
+          );
+
+        sessionStorage.setItem(
+          "ph4_content_id",
+          contentId
+        );
+
+        report.steps.push({
+          step:"news_approved",
+          pass:true,
+          content_id:contentId
+        });
+
+
+        // APPROVED visible in public list
+        const publicList =
+          await guestFetch(
+            "/api/resident-news"
+          );
+
+        const visible =
+          (publicList.data?.items ?? [])
+            .some(
+              item =>
+                String(item.id) ===
+                contentId
+            );
+
+        if (!visible) {
+          throw new Error(
+            "승인된 주민소식이 공개되지 않았습니다."
+          );
+        }
+
+        report.steps.push({
+          step:"approved_public_visible",
+          pass:true
+        });
+
+
+        // REJECT submission
+        const rejected =
+          assertSuccess(
+            await api(
+              `/api/admin/resident-news-submissions/${rejectId}/reject`,
+              {
+                method:"POST",
+                body:JSON.stringify({
+                  message:
+                    "테스트용 거절 처리입니다."
+                })
+              }
+            ),
+            "news reject"
+          );
+
+        if (
+          rejected.data?.status !==
+          "rejected"
+        ) {
+          throw new Error(
+            "거절 상태가 아닙니다."
+          );
+        }
+
+        report.steps.push({
+          step:"news_rejected",
+          pass:true
+        });
+
+
+        // REJECTED not public
+        const publicAfter =
+          await guestFetch(
+            "/api/resident-news"
+          );
+
+        const leaked =
+          (publicAfter.data?.items ?? [])
+            .some(
+              item =>
+                String(item.title ?? "")
+                  .includes("reject") &&
+                String(item.title ?? "")
+                  .includes("주민소식")
+            );
+
+        if (leaked) {
+          throw new Error(
+            "거절된 제보가 공개됐습니다."
+          );
+        }
+
+        report.steps.push({
+          step:"rejected_not_public",
+          pass:true
+        });
+
+
+        report.result =
+          "PHASE4_ADMIN_PASS";
+
+        show(
+          "#adminResult",
+          report
+        );
+
+      } catch (error) {
+
+        report.result =
+          "PHASE4_ADMIN_FAIL";
+
+        report.error =
+          error?.message ??
+          String(error);
+
+        show(
+          "#adminResult",
+          report
+        );
+      }
+    }
+  );
+
+
+// ==========================================================
+// 5. DELETE (user 7, own post)
+// ==========================================================
+
+document
+  .querySelector("#runDelete")
+  .addEventListener(
+    "click",
+    async () => {
+
+      const report = {
+        steps:[]
+      };
+
+      try {
+
+        requireProdConfirm();
+
+        await requireUserId(7);
+
+        const postId =
+          sessionStorage.getItem(
+            "ph4_post_id"
+          );
+
+        if (!postId) {
+          throw new Error(
+            "삭제할 글 ID가 없습니다."
+          );
+        }
+
+        await assertSuccess(
+          await api(
+            `/api/talk/${postId}`,
+            { method:"DELETE" }
+          ),
+          "own post delete"
+        );
+
+        report.steps.push({
+          step:"own_delete",
+          pass:true
+        });
+
+        const detail =
+          await api(
+            `/api/talk/${postId}`
+          );
+
+        if (
+          detail.http_status !== 404
+        ) {
+          throw new Error(
+            "삭제된 글이 조회됩니다: " +
+            JSON.stringify(detail)
+          );
+        }
+
+        report.steps.push({
+          step:"deleted_not_visible",
+          pass:true
+        });
+
+        const comments =
+          await api(
+            `/api/talk/${postId}/comments`
+          );
+
+        if (
+          comments.http_status !== 404
+        ) {
+          throw new Error(
+            "삭제된 글 댓글이 조회됩니다."
+          );
+        }
+
+        report.steps.push({
+          step:"deleted_comments_blocked",
+          pass:true
+        });
+
+        report.result =
+          "PHASE4_DELETE_PASS";
+
+        show(
+          "#deleteResult",
+          report
+        );
+
+      } catch (error) {
+
+        report.result =
+          "PHASE4_DELETE_FAIL";
+
+        report.error =
+          error?.message ??
+          String(error);
+
+        show(
+          "#deleteResult",
+          report
+        );
+      }
+    }
+  );
+
+
+// ==========================================================
+// 6. PRIVACY SCAN (guest, read-only)
+// ==========================================================
+
+document
+  .querySelector("#runPrivacy")
+  .addEventListener(
+    "click",
+    async () => {
+
+      const report = {
+        steps:[]
+      };
+
+      const FORBIDDEN_KEYS = [
+        "building",
+        "building_label",
+        "unit_number",
+        "household",
+        "household_id",
+        "email",
+        "auth_subject",
+        "auth_provider",
+        "phone",
+        "reviewer_note_private",
+        "note_private",
+        "evidence_storage_key",
+        "relation_detail_proof"
+      ];
+
+      function scanObject(
+        value,
+        path
+      ) {
+        if (
+          value === null ||
+          value === undefined
+        ) {
+          return;
+        }
+
+        if (Array.isArray(value)) {
+          value.forEach(
+            (item, index) =>
+              scanObject(
+                item,
+                `${path}[${index}]`
+              )
+          );
+
+          return;
+        }
+
+        if (typeof value === "object") {
+          for (const key of Object.keys(
+            value
+          )) {
+            if (
+              FORBIDDEN_KEYS.includes(
+                key
+              )
+            ) {
+              throw new Error(
+                `금지 키 노출 ${path}.${key}`
+              );
+            }
+
+            scanObject(
+              value[key],
+              `${path}.${key}`
+            );
+          }
+        }
+      }
+
+      try {
+
+        const targets = [
+          "/api/complex-content",
+          "/api/notices",
+          "/api/apartment-news",
+          "/api/resident-news",
+          "/api/talk"
+        ];
+
+        for (const target of targets) {
+          const result =
+            await guestFetch(target);
+
+          assertSuccess(
+            result,
+            `privacy fetch ${target}`
+          );
+
+          scanObject(
+            result.data,
+            target
+          );
+
+          report.steps.push({
+            step:`privacy_clean ${target}`,
+            pass:true
+          });
+        }
+
+        const talk =
+          await guestFetch("/api/talk");
+
+        const firstId =
+          talk.data?.posts?.[0]?.id;
+
+        if (firstId) {
+          const detail =
+            await guestFetch(
+              `/api/notices/${firstId}`
+            );
+
+          void detail;
+        }
+
+        report.result =
+          "PHASE4_PRIVACY_PASS";
+
+        show(
+          "#privacyResult",
+          report
+        );
+
+      } catch (error) {
+
+        report.result =
+          "PHASE4_PRIVACY_FAIL";
+
+        report.error =
+          error?.message ??
+          String(error);
+
+        show(
+          "#privacyResult",
+          report
+        );
+      }
+    }
+  );
+
+</script>
+
+</body>
+</html>
