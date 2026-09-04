@@ -19,6 +19,17 @@ export default defineConfig({
             "/api"
           ),
       },
+      "/prod-api": {
+        target:
+          "https://danjion-api-dev.muphobia2.workers.dev",
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) =>
+          path.replace(
+            /^\/prod-api/,
+            "/api"
+          ),
+      },
     },
   },
 });
