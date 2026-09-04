@@ -10,6 +10,15 @@ export default defineConfig({
         changeOrigin: true,
         secure: true,
       },
+      "/local-api": {
+        target: "http://127.0.0.1:8787",
+        changeOrigin: true,
+        rewrite: (path) =>
+          path.replace(
+            /^\/local-api/,
+            "/api"
+          ),
+      },
     },
   },
 });
