@@ -46,7 +46,9 @@
  body[data-danjion-page="4"] .hello small{font-size:11px!important;margin-bottom:7px!important}
  body[data-danjion-page="4"] .hello h1{font-size:34px!important;line-height:1.08!important;word-break:keep-all!important}
  body[data-danjion-page="4"] .hello p{font-size:14px!important;line-height:1.55!important}
- body[data-danjion-page="4"] .search{width:100%!important;height:52px!important;margin-top:17px!important;grid-template-columns:42px minmax(0,1fr) 54px!important}
+ body[data-danjion-page="4"] .search{width:100%!important;height:52px!important;margin-top:17px!important;grid-template-columns:54px minmax(0,1fr) 54px!important;border-left:1px solid var(--line)!important;border-right:1px solid var(--line)!important}
+ body[data-danjion-page="4"] .search svg{width:20px!important;height:20px!important;margin:auto!important}
+ body[data-danjion-page="4"] .search button{width:54px!important;height:50px!important;margin:0!important;padding:0!important}
  body[data-danjion-page="4"] .stage-wrap{width:100%!important;margin:14px 0 0!important;padding:0 18px!important}
  body[data-danjion-page="4"] .stage{height:auto!important;display:block!important;overflow:visible!important}
  body[data-danjion-page="4"] .visual{height:300px!important;min-height:300px!important}
@@ -148,12 +150,95 @@
 .scene-tab.active{background:var(--scene)!important;color:var(--scene-ink)!important;border-color:var(--scene)!important}
 .scene-tab.active span{opacity:.8!important}
 </style>
-<link data-final-header-sync="20260904" href="assets/consistency.css" rel="stylesheet"/></head>
+<link data-final-header-sync="20260904" href="assets/consistency.css" rel="stylesheet"/>
+<style id="frontcheck-save-feedback-20260905">
+#saveBtn{position:relative;overflow:visible;transition:transform .18s ease,background .18s ease,color .18s ease}
+#saveBtn.is-saved{background:rgba(255,255,255,.18)!important}
+#saveBtn.save-bump{transform:scale(1.06)}
+.save-heart-pop{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:24px;pointer-events:none;z-index:30;animation:danjionHeartPop .72s ease forwards}
+@keyframes danjionHeartPop{0%{opacity:0;transform:translate(-50%,-25%) scale(.5)}35%{opacity:1;transform:translate(-50%,-90%) scale(1.25)}100%{opacity:0;transform:translate(-50%,-155%) scale(.9)}}
+</style>
+
+<style id="frontcheck1-home-search-grid-lock-20260905">
+@media(max-width:760px){
+ body[data-danjion-page="4"] .home-intro{overflow:hidden!important}
+ body[data-danjion-page="4"] .search{
+   width:100%!important;max-width:100%!important;min-width:0!important;
+   grid-template-columns:52px minmax(0,1fr) 52px!important;
+   overflow:hidden!important;box-sizing:border-box!important;
+ }
+ body[data-danjion-page="4"] .search input{
+   width:100%!important;min-width:0!important;max-width:100%!important;
+   padding:0 8px!important;box-sizing:border-box!important;
+ }
+ body[data-danjion-page="4"] .search button{
+   width:52px!important;min-width:52px!important;max-width:52px!important;
+ }
+}
+</style>
+
+<style id="frontcheck1-home-app-search-balance-20260905b">
+@media(max-width:760px){
+ body[data-danjion-page="4"] .search{
+   width:calc(100% - 8px)!important;
+   margin:17px auto 0!important;
+   height:52px!important;
+   grid-template-columns:50px minmax(0,1fr) 50px!important;
+   border:1px solid var(--line)!important;
+   border-top:2px solid var(--ink)!important;
+   background:rgba(255,255,255,.76)!important;
+   overflow:hidden!important;
+ }
+ body[data-danjion-page="4"] .search svg{width:19px!important;height:19px!important;margin:auto!important}
+ body[data-danjion-page="4"] .search input{height:50px!important;padding:0 8px!important;min-width:0!important}
+ body[data-danjion-page="4"] .search button{width:50px!important;min-width:50px!important;height:50px!important;margin:0!important;padding:0!important}
+}
+</style>
+
+<style id="frontcheck1-home-app-search-final-center-20260905">
+@media(max-width:760px){
+  body[data-danjion-page="4"] .home-intro{
+    width:100%!important;
+    max-width:100%!important;
+    margin:0!important;
+    padding:22px 18px 18px!important;
+    box-sizing:border-box!important;
+  }
+  body[data-danjion-page="4"] .search{
+    width:auto!important;
+    max-width:none!important;
+    min-width:0!important;
+    margin:17px 0 0!important;
+    justify-self:stretch!important;
+    align-self:stretch!important;
+    position:relative!important;
+    left:auto!important;
+    right:auto!important;
+    transform:none!important;
+    grid-template-columns:50px minmax(0,1fr) 50px!important;
+    box-sizing:border-box!important;
+  }
+  body[data-danjion-page="4"] .search input{
+    width:100%!important;
+    min-width:0!important;
+    padding:0 10px!important;
+    box-sizing:border-box!important;
+  }
+  body[data-danjion-page="4"] .search button{
+    width:50px!important;
+    min-width:50px!important;
+    max-width:50px!important;
+    margin:0!important;
+    padding:0!important;
+  }
+}
+</style>
+</head>
 <body data-danjion-page="4">
 <header class="topbar"><div class="topbar-inner"><button class="brand" data-route="index.html" type="button"><span class="wordmark">단지온</span><small>DANJION by PADIEM</small></button><nav class="nav"><button class="active" data-route="04_데일리홈.html" type="button">홈</button><button data-route="01_이웃가게_발견.html" type="button">이웃가게</button><button data-route="05_우리단지_첫화면.html" type="button">우리단지</button><button data-demo="내정보는 웹 1차 정리에서 연결합니다." type="button">내정보</button></nav><div class="identity">방림명지로드힐</div></div></header>
-<section class="home-intro"><div class="hello"><small>WELCOME HOME · 방림명지로드힐</small><h1>필요한 일, 우리 단지에서 먼저 찾습니다.</h1><p>가게 이름보다 먼저 <strong>이웃이 실제로 일하는 장면</strong>을 보여주는 단지온의 첫 화면입니다.</p></div><form class="search" id="searchForm"><svg viewbox="0 0 24 24"><circle cx="10.5" cy="10.5" r="5.8"></circle><path d="m15 15 5 5"></path></svg><input aria-label="이웃가게 검색" id="searchInput" placeholder="반찬 · 과외 · 청소 · 세무"/><button aria-label="검색" type="submit">→</button></form></section>
-<section aria-label="시네마틱 이웃가게 소개" class="stage-wrap"><div class="stage"><div class="visual" id="visual"><img alt="오늘의 반찬 작업 장면" class="scene-image" id="sceneImage" src="assets/scene-food.webp"/><img alt="" aria-hidden="true" class="ghost" id="ghost" src="assets/scene-food.webp"/><div class="scene-no"><span id="sceneNumber">01</span> / 04 · 오늘의 대표 이웃</div><div class="caption"><div class="kicker">단지온이 소개하는 이웃의 일</div><h2 id="captionTitle">반찬을 만드는 이웃</h2><p id="captionText">손질하고, 볶고, 담는 과정이 먼저 보이면 광고문구보다 이웃의 일이 더 빨리 이해됩니다.</p></div><div aria-hidden="true" class="rail"><span class="rail-fill" id="railFill"></span></div></div><aside class="panel light" id="panel"><div><small>SCENE 01 · RESIDENT WORK</small><h3 id="shopName">오늘의 반찬</h3><p class="copy" id="shopCopy">매일 먹는 반찬을 직접 만들고 예약 주문으로 준비하는 이웃입니다.</p><div class="facts"><div class="fact"><b>주민 관계</b><span id="relation">현재 단지 주민 직접 운영</span></div><div class="fact"><b>이용 방법</b><span id="price">메뉴별 가격 · 예약 주문</span></div><div class="fact"><b>주민 혜택</b><span id="benefit">방림명지로드힐 주민 10%</span></div><div class="fact"><b>상태</b><span id="status">입주민 관계 확인 · 시연용 예시</span></div></div></div><div class="actions"><button class="primary" data-shop-key="food" id="detailBtn" type="button">이 이웃의 일 보기</button><button id="saveBtn" type="button">♡ 저장</button></div></aside></div><div aria-label="이웃가게 장면 선택" class="scene-tabs" role="tablist"><button class="scene-tab active" data-key="food" type="button">01<span>FOOD</span></button><button class="scene-tab" data-key="learning" type="button">02<span>LEARN</span></button><button class="scene-tab" data-key="home" type="button">03<span>HOME</span></button><button class="scene-tab" data-key="professional" type="button">04<span>PRO</span></button></div></section>
-<section class="after-stage"><article class="benefit"><div><small>RESIDENT BENEFIT</small><h3>가게마다 다른 주민혜택을<br/>이웃가게에서 확인하세요.</h3><p>여러 이웃가게를 둘러본 뒤 각 가게의 혜택 탭에서 자세히 확인할 수 있습니다.</p></div><button aria-label="이웃가게 전체 보기" class="go" data-route="01_이웃가게_발견.html?from=benefit" type="button">→</button></article><article class="news"><div class="news-head"><h3>우리단지 새 소식</h3><button data-route="05_우리단지_첫화면.html" type="button">전체보기 →</button></div><button class="news-row" data-route="06_단지온공지_목록.html" type="button"><small>단지온</small><b>주민 사업자 등록 안내</b><span>→</span></button><button class="news-row" data-route="08_아파트소식_목록.html" type="button"><small>아파트</small><b>8월 입주민 간담회 안내</b><span>→</span></button><button class="news-row" data-route="10_주민소식_목록.html" type="button"><small>주민</small><b>우리 단지 새 이웃가게 소개</b><span>→</span></button></article></section>
+<section class="home-intro"><div class="hello"><small>WELCOME HOME · 방림명지로드힐</small><h1>필요한 일, 우리 단지에서 먼저 찾습니다.</h1><p>우리 단지에서 필요한 가게와 생활서비스를 한눈에 찾아보세요.</p></div><form class="search" id="searchForm"><svg viewbox="0 0 24 24"><circle cx="10.5" cy="10.5" r="5.8"></circle><path d="m15 15 5 5"></path></svg><input aria-label="이웃가게 검색" id="searchInput" placeholder="반찬 · 과외 · 청소 · 세무"/><button aria-label="검색" type="submit">→</button></form></section>
+<section aria-label="시네마틱 이웃가게 소개" class="stage-wrap"><div class="stage"><div class="visual" id="visual"><img alt="오늘의 반찬 작업 장면" class="scene-image" id="sceneImage" src="assets/scene-food.webp"/><img alt="" aria-hidden="true" class="ghost" id="ghost" src="assets/scene-food.webp"/><div class="scene-no"><span id="sceneNumber">01</span> / 04 · 오늘의 대표 이웃</div><div class="caption"><div class="kicker">단지온이 소개하는 이웃의 일</div><h2 id="captionTitle">반찬을 만드는 이웃</h2><p id="captionText">손질하고, 볶고, 담는 과정이 먼저 보이면 광고문구보다 이웃의 일이 더 빨리 이해됩니다.</p></div><div aria-hidden="true" class="rail"><span class="rail-fill" id="railFill"></span></div></div><aside class="panel light" id="panel"><div><small id="sceneLabel">SCENE 01 · RESIDENT WORK</small><h3 id="shopName">오늘의 반찬</h3><p class="copy" id="shopCopy">매일 먹는 반찬을 직접 만들고 예약 주문으로 준비하는 이웃입니다.</p><div class="facts"><div class="fact"><b>주민 관계</b><span id="relation">현재 단지 주민 직접 운영</span></div><div class="fact"><b>이용 방법</b><span id="price">메뉴별 가격 · 예약 주문</span></div><div class="fact"><b>주민 혜택</b><span id="benefit">방림명지로드힐 주민 10%</span></div><div class="fact"><b>상태</b><span id="status">입주민 관계 확인 · 시연용 예시</span></div></div></div><div class="actions"><button class="primary" data-shop-key="food" id="detailBtn" type="button">이 이웃의 일 보기</button><button id="saveBtn" type="button">♡ 저장</button></div></aside></div><div aria-label="이웃가게 장면 선택" class="scene-tabs" role="tablist"><button class="scene-tab active" data-key="food" type="button">01<span>FOOD</span></button><button class="scene-tab" data-key="learning" type="button">02<span>LEARN</span></button><button class="scene-tab" data-key="home" type="button">03<span>HOME</span></button><button class="scene-tab" data-key="professional" type="button">04<span>PRO</span></button></div></section>
+<section class="after-stage"><article class="benefit"><div><small>RESIDENT BENEFIT</small><h3>가게마다 다른 주민혜택을<br/>이웃가게에서 확인하세요.</h3><p>여러 이웃가게를 둘러본 뒤 각 가게의 혜택 탭에서 자세히 확인할 수 있습니다.</p></div><button aria-label="이웃가게 전체 보기" class="go" data-route="01_이웃가게_발견.html?from=benefit" type="button">→</button></article><article class="news"><div class="news-head"><h3>우리단지 새 소식</h3><button data-route="05_우리단지_첫화면.html" type="button">전체보기 →</button></div><button class="news-row" data-route="06_단지온공지_목록.html" type="button"><small>단지온공지</small><b>주민 사업자 등록 안내</b><span>→</span></button><button class="news-row" data-route="08_아파트소식_목록.html" type="button"><small>아파트소식</small><b>8월 입주민 간담회 안내</b><span>→</span></button><button class="news-row" data-route="10_주민소식_목록.html" type="button"><small>주민소식</small><b>우리 단지 새 이웃가게 소개</b><span>→</span></button></article></section>
 <nav aria-label="모바일 주요 메뉴" class="mobile-bottom"><button aria-label="홈" class="active" data-route="04_데일리홈.html" type="button"><svg aria-hidden="true" viewbox="0 0 24 24"><path d="m3 10 9-7 9 7v10h-6v-6H9v6H3z"></path></svg><span>홈</span></button><button aria-label="이웃가게" data-route="01_이웃가게_발견.html" type="button"><svg aria-hidden="true" viewbox="0 0 24 24"><path d="M4 7h16l-1 13H5L4 7Z"></path><path d="M8 7V5a4 4 0 0 1 8 0v2"></path></svg><span>이웃가게</span></button><button aria-label="우리단지" data-route="05_우리단지_첫화면.html" type="button"><svg aria-hidden="true" viewbox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12"></path><path d="M8 13h8M8 17h8"></path></svg><span>우리단지</span></button><button aria-label="내정보" data-route="19_내정보_메인.html" type="button"><svg aria-hidden="true" viewbox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg><span>내정보</span></button></nav><div class="toast" id="toast" role="status"></div>
 <script>
 (()=>{
@@ -165,9 +250,13 @@ const scenes={
 };
 let key='food',timer;const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
 function toast(t){const el=q('#toast');el.textContent=t;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1500)}
-function setScene(next,manual=true){const d=scenes[next];if(!d||next===key&&manual===false)return;key=next;document.documentElement.style.setProperty('--scene',d.color);document.documentElement.style.setProperty('--scene-ink',d.ink);document.documentElement.style.setProperty('--dark',d.dark);document.documentElement.style.setProperty('--accent',d.color);document.documentElement.style.setProperty('--accent-text',d.labelColor||d.color);const visual=q('#visual'),img=q('#sceneImage'),ghost=q('#ghost');ghost.src=d.image;visual.classList.add('switching');setTimeout(()=>{img.src=d.image;img.alt=d.caption+' 작업 장면';visual.classList.remove('switching')},260);q('#sceneNumber').textContent=String(d.i).padStart(2,'0');q('#captionTitle').textContent=d.caption;q('#captionText').textContent=d.captionText;q('#shopName').textContent=d.name;q('#shopCopy').textContent=d.copy;q('#relation').textContent=d.relation;q('#price').textContent=d.price;q('#benefit').textContent=d.benefit;q('#status').textContent=d.status;q('#railFill').style.height=(d.i*25)+'%';q('#panel').classList.toggle('dark',d.ink==='#fff');q('#panel').classList.toggle('light',d.ink!=='#fff');qa('.scene-tab').forEach(b=>{const active=b.dataset.key===next;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active));if(active){b.style.background=d.color;b.style.color=d.ink;b.style.borderColor=d.color}else{b.style.background='';b.style.color='';b.style.borderColor=''}});q('#detailBtn').dataset.route='02_이웃가게_상세.html?shop='+encodeURIComponent(next)+'&from=home';q('#detailBtn').dataset.shopKey=next;if(manual)restart();}
+function setScene(next,manual=true){const d=scenes[next];if(!d||next===key&&manual===false)return;key=next;document.documentElement.style.setProperty('--scene',d.color);document.documentElement.style.setProperty('--scene-ink',d.ink);document.documentElement.style.setProperty('--dark',d.dark);document.documentElement.style.setProperty('--accent',d.color);document.documentElement.style.setProperty('--accent-text',d.labelColor||d.color);const visual=q('#visual'),img=q('#sceneImage'),ghost=q('#ghost');ghost.src=d.image;visual.classList.add('switching');setTimeout(()=>{img.src=d.image;img.alt=d.caption+' 작업 장면';visual.classList.remove('switching')},260);q('#sceneNumber').textContent=String(d.i).padStart(2,'0');q('#sceneLabel').textContent='SCENE '+String(d.i).padStart(2,'0')+' · RESIDENT WORK';q('#captionTitle').textContent=d.caption;q('#captionText').textContent=d.captionText;q('#shopName').textContent=d.name;q('#shopCopy').textContent=d.copy;q('#relation').textContent=d.relation;q('#price').textContent=d.price;q('#benefit').textContent=d.benefit;q('#status').textContent=d.status;q('#railFill').style.height=(d.i*25)+'%';q('#panel').classList.toggle('dark',d.ink==='#fff');q('#panel').classList.toggle('light',d.ink!=='#fff');qa('.scene-tab').forEach(b=>{const active=b.dataset.key===next;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active));if(active){b.style.background=d.color;b.style.color=d.ink;b.style.borderColor=d.color}else{b.style.background='';b.style.color='';b.style.borderColor=''}});q('#detailBtn').dataset.route='02_이웃가게_상세.html?shop='+encodeURIComponent(next)+'&from=home';q('#detailBtn').dataset.shopKey=next;syncSaveButton();if(manual)restart();}
 function restart(){clearInterval(timer);timer=setInterval(()=>{const keys=Object.keys(scenes),i=keys.indexOf(key);setScene(keys[(i+1)%keys.length],false)},6500)}
-qa('.scene-tab').forEach(b=>b.addEventListener('click',()=>setScene(b.dataset.key)));qa('[data-route]').forEach(b=>b.addEventListener('click',()=>location.href=b.dataset.route));qa('[data-demo]').forEach(b=>b.addEventListener('click',()=>toast(b.dataset.demo)));q('#detailBtn').addEventListener('click',()=>location.href=q('#detailBtn').dataset.route);q('#saveBtn').addEventListener('click',()=>toast(scenes[key].name+'을(를) 내정보에 저장하는 기능으로 연결합니다.'));q('#searchForm').addEventListener('submit',e=>{e.preventDefault();const v=q('#searchInput').value.trim();const found=v.includes('수학')||v.includes('과외')?'learning':v.includes('청소')||v.includes('에어컨')?'home':v.includes('세무')||v.includes('사업')?'professional':v.includes('반찬')||v.includes('김치')?'food':null;if(found){setScene(found);toast('관련 이웃의 일을 먼저 보여드립니다.')}else toast(v?'이웃가게 전체 검색으로 연결합니다.':'찾고 싶은 일을 입력해 주세요.')});restart();
+qa('.scene-tab').forEach(b=>b.addEventListener('click',()=>setScene(b.dataset.key)));qa('[data-route]').forEach(b=>b.addEventListener('click',()=>location.href=b.dataset.route));qa('[data-demo]').forEach(b=>b.addEventListener('click',()=>toast(b.dataset.demo)));q('#detailBtn').addEventListener('click',()=>location.href=q('#detailBtn').dataset.route);function getSaved(){try{return JSON.parse(localStorage.getItem('danjion:savedShops')||'[]')}catch(e){return []}}
+function setSaved(list){try{localStorage.setItem('danjion:savedShops',JSON.stringify([...new Set(list)]))}catch(e){}}
+function syncSaveButton(){const saved=getSaved().includes(key),b=q('#saveBtn');b.classList.toggle('is-saved',saved);b.textContent=saved?'♥ 저장됨':'♡ 저장'}
+function popHeart(){const b=q('#saveBtn'),h=document.createElement('span');h.className='save-heart-pop';h.textContent='♥';b.appendChild(h);b.classList.add('save-bump');setTimeout(()=>b.classList.remove('save-bump'),180);setTimeout(()=>h.remove(),760)}
+q('#saveBtn').addEventListener('click',()=>{const list=getSaved(),i=list.indexOf(key);if(i>=0){list.splice(i,1);setSaved(list);syncSaveButton();toast(scenes[key].name+' 저장을 취소했어요.')}else{list.push(key);setSaved(list);syncSaveButton();popHeart();toast(scenes[key].name+'을(를) 저장했어요. 내정보에서 다시 볼 수 있어요.')}});q('#searchForm').addEventListener('submit',e=>{e.preventDefault();const v=q('#searchInput').value.trim();if(!v){toast('찾고 싶은 일을 입력해 주세요.');return}location.href='01_이웃가게_발견.html?q='+encodeURIComponent(v)});syncSaveButton();restart();
 })();
 </script>
 <script id="danjion-direct-router-v5">

@@ -142,7 +142,25 @@
   [data-danjion-page="19"] .profile-stats{margin-top:18px!important}
   [data-danjion-page="19"] .level-card{margin-top:16px!important;padding-top:16px!important}
 }
-</style></head>
+</style>
+<style id="frontcheck-myinfo-density-final-20260904">
+@media(min-width:761px){
+  [data-danjion-page="19"] .profile-hero{height:240px!important;min-height:240px!important;padding:20px 24px!important;grid-template-columns:minmax(0,1fr) 250px!important;gap:24px!important}
+  [data-danjion-page="19"] .side-stack{height:240px!important;gap:10px!important}
+  [data-danjion-page="19"] .profile-top{gap:14px!important}
+  [data-danjion-page="19"] .avatar{width:68px!important;height:68px!important}
+  [data-danjion-page="19"] .profile-name h2{font-size:30px!important}
+  [data-danjion-page="19"] .profile-name p{margin-top:4px!important}
+  [data-danjion-page="19"] .profile-stats{margin-top:10px!important}
+  [data-danjion-page="19"] .stat{padding-top:12px!important}
+  [data-danjion-page="19"] .level-card{padding-left:21px!important}
+  [data-danjion-page="19"] .level-card strong{font-size:25px!important;margin-top:8px!important}
+  [data-danjion-page="19"] .level-track{margin-top:18px!important}
+  [data-danjion-page="19"] .level-next{margin-top:8px!important}
+  [data-danjion-page="19"] .side-card{padding:15px 20px!important}
+}
+</style>
+</head>
 <body data-danjion-page="19">
 <header class="site-header"><div class="header-inner"><button class="brand" data-demo="단지온 홈은 최종 연결 단계에서 이어집니다." type="button">단지온 <small>DANJION by PADIEM</small></button><nav class="desktop-nav"><button data-demo="홈은 최종 연결 단계에서 이어집니다." type="button">홈</button><button data-demo="이웃가게는 최종 연결 단계에서 이어집니다." type="button">이웃가게</button><button data-demo="우리단지는 최종 연결 단계에서 이어집니다." type="button">우리단지</button><button class="active" type="button">내정보</button></nav><div class="identity">방림명지로드힐</div><div class="mobile-head">내정보</div></div></header>
 <main>
@@ -232,7 +250,13 @@ document.addEventListener('click',function(ev){
  if(SCREEN==='community' && cls.contains('write-type')){ev.preventDefault();ev.stopImmediatePropagation();const i=[...document.querySelectorAll('.write-type')].indexOf(el);go([FILES.writeHello,FILES.writeStory,FILES.writeQuestion,FILES.writeTogether][i]||FILES.community);return;}
  if(SCREEN==='community' && el.tagName==='A' && text.includes('안녕하세요')){ev.preventDefault();ev.stopImmediatePropagation();go(FILES.communityDetail);return;}
  if(SCREEN==='my' && cls.contains('card-link')){ev.preventDefault();ev.stopImmediatePropagation();const i=[...document.querySelectorAll('.card-link')].indexOf(el);go(i===0?FILES.messages:FILES.household);return;}
- if(SCREEN==='my' && cls.contains('menu-row')){ev.preventDefault();ev.stopImmediatePropagation();const i=[...document.querySelectorAll('.menu-row')].indexOf(el);go(FILES.activity+'?tab='+Math.min(i,3));return;}
+ if(SCREEN==='my' && cls.contains('menu-row')){
+   ev.preventDefault();ev.stopImmediatePropagation();
+   const i=[...document.querySelectorAll('.menu-row')].indexOf(el);
+   if(i===3){go(FILES.activity+'?view=saved');return;}
+   if(i===4){go(FILES.activity+'?view=benefits');return;}
+   go(FILES.activity+'?tab='+Math.max(0,Math.min(i,2)));return;
+ }
  if(SCREEN==='my' && el.dataset&&el.dataset.helpTarget){
    ev.preventDefault();ev.stopImmediatePropagation();
    try{sessionStorage.setItem('danjion:my:helpScrollY',String(Math.round(window.scrollY||0)))}catch(e){}

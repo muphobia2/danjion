@@ -147,7 +147,7 @@
       .mobile-bottom button.active{color:var(--coral)}
       .mobile-bottom svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
       .catalog-head{height:58px}.catalog-head h2{font-size:20px}.catalog-head span{font-size:12px}
-      .shop-grid{display:block;margin:12px -20px 0}
+      .shop-grid{display:block;margin:12px 0 0}
       .shop-card{grid-template-columns:125px 1fr;min-height:205px;border-left:0;border-right:0;margin-bottom:10px}
       .shop-photo{min-height:205px}.shop-copy{padding:19px 17px 16px}.shop-copy small{font-size:11px;margin-bottom:8px}.shop-copy h2{font-size:21px}.shop-copy p{font-size:13px}.shop-meta{margin-top:9px}.shop-meta span{font-size:10px}.shop-link{font-size:14px;padding-top:11px}
       .toast{bottom:82px;max-width:calc(100% - 36px);white-space:nowrap}
@@ -308,8 +308,11 @@
     document.querySelector('#searchForm').addEventListener('submit',event=>{
       event.preventDefault();currentQuery=document.querySelector('#searchInput').value.trim();currentPage=1;renderCatalog();
     });
-    const initialCategory=new URLSearchParams(location.search).get('category');
+    const params=new URLSearchParams(location.search);
+    const initialCategory=params.get('category');
+    const initialQuery=(params.get('q')||'').trim();
     if(initialCategory){const selected=filters.find(button=>button.dataset.filter===initialCategory);if(selected){currentFilter=initialCategory;filters.forEach(x=>x.classList.toggle('active',x===selected))}}
+    if(initialQuery){currentQuery=initialQuery;document.querySelector('#searchInput').value=initialQuery}
     renderCatalog();
     document.querySelectorAll('[data-route]').forEach(button=>button.addEventListener('click',()=>{location.href=button.dataset.route}));
     const toast=document.querySelector('.toast');let toastTimer;
