@@ -48,33 +48,87 @@ import {
   handleReviewReply,
 } from "./routes/business-discovery.js";
 
+import {
+  handleShopApplicationCreate,
+  handleShopReportCreate,
+  handleMyShopApplications,
+  handleMyShopApplicationUpdate,
+  handleMyShopApplicationSubmit,
+  handleAdminShopApplications,
+  handleAdminShopApplicationAction,
+} from "./routes/business-applications.js";
+
+import {
+  handleShopApplicationFileUpload,
+  handleMyShopApplicationFiles,
+  handleShopApplicationFileDelete,
+  handlePublicShopApplicationFile,
+  handlePrivateShopApplicationFile,
+} from "./routes/business-files.js";
+
+
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
+    const url =
+      new URL(request.url);
 
-    if (url.pathname === "/api/hello") {
+
+    // =====================================================
+    // BASIC
+    // =====================================================
+
+    if (
+      url.pathname ===
+      "/api/hello"
+    ) {
       return handleHello();
     }
 
-    if (url.pathname === "/api/test-users") {
+    if (
+      url.pathname ===
+      "/api/test-users"
+    ) {
       return handleTestUsers(env);
     }
 
-    if (url.pathname === "/api/complexes") {
+    if (
+      url.pathname ===
+      "/api/complexes"
+    ) {
       return handleComplexes(env);
     }
 
-    if (url.pathname === "/api/buildings") {
+    if (
+      url.pathname ===
+      "/api/buildings"
+    ) {
       return handleBuildings(env);
     }
 
-    if (url.pathname === "/api/me") {
-      return handleMe(request, env);
+    if (
+      url.pathname ===
+      "/api/me"
+    ) {
+      return handleMe(
+        request,
+        env
+      );
     }
 
-    if (url.pathname === "/api/home") {
-      return handleHome(request, env);
+    if (
+      url.pathname ===
+      "/api/home"
+    ) {
+      return handleHome(
+        request,
+        env
+      );
     }
+
+
+    // =====================================================
+    // RESIDENT
+    // =====================================================
 
     if (
       url.pathname ===
@@ -111,11 +165,176 @@ export default {
         /^\/api\/admin\/resident-verifications\/(\d+)\/approve$/
       );
 
-    if (residentApproveMatch) {
+    if (
+      residentApproveMatch
+    ) {
       return handleApproveResidentVerification(
         request,
         env,
         residentApproveMatch[1]
+      );
+    }
+
+
+    // =====================================================
+    // PHASE 3 — APPLICATION / REPORT
+    // =====================================================
+
+    if (
+      url.pathname ===
+      "/api/shop-applications"
+    ) {
+      return handleShopApplicationCreate(
+        request,
+        env
+      );
+    }
+
+    if (
+      url.pathname ===
+      "/api/shop-reports"
+    ) {
+      return handleShopReportCreate(
+        request,
+        env
+      );
+    }
+
+    if (
+      url.pathname ===
+      "/api/me/shop-applications"
+    ) {
+      return handleMyShopApplications(
+        request,
+        env
+      );
+    }
+
+    const myApplicationSubmitMatch =
+      url.pathname.match(
+        /^\/api\/me\/shop-applications\/(\d+)\/submit$/
+      );
+
+    if (
+      myApplicationSubmitMatch
+    ) {
+      return handleMyShopApplicationSubmit(
+        request,
+        env,
+        myApplicationSubmitMatch[1]
+      );
+    }
+
+    const myApplicationFileDeleteMatch =
+      url.pathname.match(
+        /^\/api\/me\/shop-applications\/(\d+)\/files\/(\d+)$/
+      );
+
+    if (
+      myApplicationFileDeleteMatch
+    ) {
+      return handleShopApplicationFileDelete(
+        request,
+        env,
+        myApplicationFileDeleteMatch[1],
+        myApplicationFileDeleteMatch[2]
+      );
+    }
+
+    const myApplicationFilesMatch =
+      url.pathname.match(
+        /^\/api\/me\/shop-applications\/(\d+)\/files$/
+      );
+
+    if (
+      myApplicationFilesMatch
+    ) {
+      if (
+        request.method ===
+        "POST"
+      ) {
+        return handleShopApplicationFileUpload(
+          request,
+          env,
+          myApplicationFilesMatch[1]
+        );
+      }
+
+      return handleMyShopApplicationFiles(
+        request,
+        env,
+        myApplicationFilesMatch[1]
+      );
+    }
+
+    const myPrivateFileMatch =
+      url.pathname.match(
+        /^\/api\/me\/shop-application-files\/(\d+)$/
+      );
+
+    if (
+      myPrivateFileMatch
+    ) {
+      return handlePrivateShopApplicationFile(
+        request,
+        env,
+        myPrivateFileMatch[1]
+      );
+    }
+
+    const publicFileMatch =
+      url.pathname.match(
+        /^\/api\/shop-application-files\/(\d+)$/
+      );
+
+    if (
+      publicFileMatch
+    ) {
+      return handlePublicShopApplicationFile(
+        request,
+        env,
+        publicFileMatch[1]
+      );
+    }
+
+    const myApplicationMatch =
+      url.pathname.match(
+        /^\/api\/me\/shop-applications\/(\d+)$/
+      );
+
+    if (
+      myApplicationMatch
+    ) {
+      return handleMyShopApplicationUpdate(
+        request,
+        env,
+        myApplicationMatch[1]
+      );
+    }
+
+    if (
+      url.pathname ===
+      "/api/admin/shop-applications"
+    ) {
+      return handleAdminShopApplications(
+        request,
+        env
+      );
+    }
+
+    const adminApplicationActionMatch =
+      url.pathname.match(
+        /^\/api\/admin\/shop-applications\/(\d+)\/(needs-more-info|reject|approve)$/
+      );
+
+    if (
+      adminApplicationActionMatch
+    ) {
+      return handleAdminShopApplicationAction(
+        request,
+        env,
+        adminApplicationActionMatch[1],
+        adminApplicationActionMatch[2]
       );
     }
 
@@ -134,7 +353,10 @@ export default {
       );
     }
 
-    if (url.pathname === "/api/businesses") {
+    if (
+      url.pathname ===
+      "/api/businesses"
+    ) {
       return handleBusinesses(
         request,
         env
@@ -166,11 +388,15 @@ export default {
         /^\/api\/businesses\/by-slug\/([^/]+)$/
       );
 
-    if (bySlugMatch) {
+    if (
+      bySlugMatch
+    ) {
       return handleBusinessBySlug(
         request,
         env,
-        decodeURIComponent(bySlugMatch[1])
+        decodeURIComponent(
+          bySlugMatch[1]
+        )
       );
     }
 
@@ -179,7 +405,9 @@ export default {
         /^\/api\/businesses\/(\d+)\/save$/
       );
 
-    if (businessSaveMatch) {
+    if (
+      businessSaveMatch
+    ) {
       return handleBusinessSave(
         request,
         env,
@@ -192,7 +420,9 @@ export default {
         /^\/api\/businesses\/(\d+)\/reviews$/
       );
 
-    if (businessReviewsMatch) {
+    if (
+      businessReviewsMatch
+    ) {
       return handleBusinessReviews(
         request,
         env,
@@ -205,7 +435,9 @@ export default {
         /^\/api\/reviews\/(\d+)\/reply$/
       );
 
-    if (reviewReplyMatch) {
+    if (
+      reviewReplyMatch
+    ) {
       return handleReviewReply(
         request,
         env,
@@ -218,7 +450,9 @@ export default {
         /^\/api\/reviews\/(\d+)$/
       );
 
-    if (reviewMatch) {
+    if (
+      reviewMatch
+    ) {
       return handleMyReviewMutation(
         request,
         env,
@@ -231,7 +465,9 @@ export default {
         /^\/api\/me\/businesses\/(\d+)\/hours$/
       );
 
-    if (myBusinessHoursMatch) {
+    if (
+      myBusinessHoursMatch
+    ) {
       return handleBusinessHours(
         request,
         env,
@@ -244,7 +480,9 @@ export default {
         /^\/api\/me\/businesses\/(\d+)\/benefits$/
       );
 
-    if (myBusinessBenefitsMatch) {
+    if (
+      myBusinessBenefitsMatch
+    ) {
       return handleBusinessBenefits(
         request,
         env,
@@ -257,7 +495,9 @@ export default {
         /^\/api\/me\/businesses\/(\d+)$/
       );
 
-    if (myBusinessMatch) {
+    if (
+      myBusinessMatch
+    ) {
       return handleUpdateMyBusiness(
         request,
         env,
@@ -270,7 +510,9 @@ export default {
         /^\/api\/businesses\/(\d+)$/
       );
 
-    if (businessDetailMatch) {
+    if (
+      businessDetailMatch
+    ) {
       return handleBusinessDetail(
         request,
         env,
@@ -298,7 +540,9 @@ export default {
         /^\/api\/admin\/businesses\/(\d+)\/approve$/
       );
 
-    if (businessApproveMatch) {
+    if (
+      businessApproveMatch
+    ) {
       return handleApproveBusiness(
         request,
         env,
