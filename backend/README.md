@@ -47,3 +47,11 @@ src/
 └─ db/
    └─ client.js
 ```
+
+## Frontend ↔ Backend version policy
+
+Backend/frontend version policy:
+../docs/FRONTEND_BACKEND_VERSION_POLICY.md
+
+V2 design work:
+design/frontend-v2-wip-20260905 (main에 직접 반영하지 않음)
