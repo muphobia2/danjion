@@ -66,7 +66,8 @@
 <p class="note">
   비밀번호와 JWT는 화면에 출력하지 않습니다.
   순서: GUEST → user 7(주민) → user 1(관리자) → user 7(삭제).
-  단계별 신청/글 ID는 sessionStorage에만 임시 저장합니다.
+  JWT와 단계별 ID는 모드별 namespace로 sessionStorage에만 임시 저장합니다.
+  JWT·비밀번호는 화면에 출력하지 않습니다.
 </p>
 
 
@@ -237,7 +238,69 @@ const AUTH_URL =
 const auth =
   createAuthClient(AUTH_URL);
 
-let jwt = null;
+let jwtCache = {
+  mode:null,
+  token:null
+};
+
+
+function jwtKey(mode) {
+  return `ph4:${mode}:jwt`;
+}
+
+
+function nsKey(
+  mode,
+  name
+) {
+  return `ph4:${mode}:${name}`;
+}
+
+
+function nsGet(
+  mode,
+  name
+) {
+  return sessionStorage.getItem(
+    nsKey(mode, name)
+  );
+}
+
+
+function nsSet(
+  mode,
+  name,
+  value
+) {
+  sessionStorage.setItem(
+    nsKey(mode, name),
+    String(value)
+  );
+}
+
+
+function nsClearRun(mode) {
+  for (const name of [
+    "run_id",
+    "post_id",
+    "comment_id",
+    "approve_id",
+    "reject_id",
+    "content_id"
+  ]) {
+    sessionStorage.removeItem(
+      nsKey(mode, name)
+    );
+  }
+}
+
+
+function clearJwtCache() {
+  jwtCache = {
+    mode:null,
+    token:null
+  };
+}
 
 
 function show(
@@ -308,8 +371,31 @@ function refreshTarget() {
 
 
 async function getJwt() {
-  if (jwt) {
-    return jwt;
+  const mode =
+    getMode();
+
+  if (
+    jwtCache.mode === mode &&
+    jwtCache.token
+  ) {
+    return jwtCache.token;
+  }
+
+  const stored =
+    sessionStorage.getItem(
+      jwtKey(mode)
+    );
+
+  if (
+    stored &&
+    stored.split(".").length === 3
+  ) {
+    jwtCache = {
+      mode,
+      token:stored
+    };
+
+    return stored;
   }
 
   const sessionResult =
@@ -319,20 +405,167 @@ async function getJwt() {
     sessionResult?.data ??
     sessionResult;
 
-  jwt =
+  const token =
     session?.session?.token ??
     null;
 
   if (
-    !jwt ||
-    jwt.split(".").length !== 3
+    !token ||
+    token.split(".").length !== 3
   ) {
     throw new Error(
       "먼저 로그인하세요."
     );
   }
 
-  return jwt;
+  sessionStorage.setItem(
+    jwtKey(mode),
+    token
+  );
+
+  jwtCache = {
+    mode,
+    token
+  };
+
+  return token;
+}
+
+
+async function restoreSession() {
+  const mode =
+    getMode();
+
+  clearJwtCache();
+
+  const stored =
+    sessionStorage.getItem(
+      jwtKey(mode)
+    );
+
+  if (!stored) {
+    show(
+      "#loginResult",
+      {
+        session_restored:false,
+        note:"저장된 세션이 없습니다. 로그인하세요."
+      }
+    );
+
+    return;
+  }
+
+  jwtCache = {
+    mode,
+    token:stored
+  };
+
+  try {
+    const me =
+      await api("/api/me");
+
+    if (me.ok !== true) {
+      throw new Error("invalid");
+    }
+
+    show(
+      "#loginResult",
+      {
+        session_restored:true,
+        mode,
+        user: {
+          id:
+            me.data?.user?.id,
+
+          display_name:
+            me.data?.user
+              ?.display_name
+        }
+      }
+    );
+  } catch {
+    sessionStorage.removeItem(
+      jwtKey(mode)
+    );
+
+    clearJwtCache();
+
+    show(
+      "#loginResult",
+      {
+        session_restored:false,
+        note:"저장된 세션이 만료됐습니다. 다시 로그인하세요."
+      }
+    );
+  }
+}
+
+
+const activeFlows = new Set();
+
+function startFlow(name) {
+  if (activeFlows.has(name)) {
+    throw new Error(
+      "PHASE4_E2E_RUN_ALREADY_ACTIVE"
+    );
+  }
+
+  activeFlows.add(name);
+
+  return name;
+}
+
+
+function endFlow(name) {
+  activeFlows.delete(name);
+}
+
+
+function setButtonEnabled(
+  selector,
+  enabled
+) {
+  const button =
+    document.querySelector(selector);
+
+  if (button) {
+    button.disabled = !enabled;
+  }
+}
+
+
+function newRunId() {
+  return (
+    new Date()
+      .toISOString()
+      .replace(/[-:T.Z]/g, "")
+      .slice(0, 14) +
+    "-" +
+    Math.random()
+      .toString(36)
+      .slice(2, 5)
+  );
+}
+
+
+function runTag(
+  mode,
+  runId
+) {
+  return mode === "production"
+    ? `[PROD-E2E:${runId}]`
+    : `[LOCAL-E2E:${runId}]`;
+}
+
+
+function assertSameMode(runMode) {
+  if (
+    getMode() !== runMode
+  ) {
+    throw new Error(
+      "MODE_CHANGED_ABORT"
+    );
+  }
 }
 
 
@@ -467,11 +700,15 @@ document
   .forEach(radio => {
     radio.addEventListener(
       "change",
-      refreshTarget
+      () => {
+        refreshTarget();
+        restoreSession();
+      }
     );
   });
 
 refreshTarget();
+restoreSession();
 
 
 // ==========================================================
@@ -504,7 +741,7 @@ document
           throw result.error;
         }
 
-        jwt = null;
+        clearJwtCache();
 
         const me =
           await api("/api/me");
@@ -553,7 +790,11 @@ document
 
       await auth.signOut();
 
-      jwt = null;
+      sessionStorage.removeItem(
+        jwtKey(getMode())
+      );
+
+      clearJwtCache();
 
       show(
         "#loginResult",
@@ -811,20 +1052,48 @@ document
     "click",
     async () => {
 
+      const flow =
+        "resident";
+
+      setButtonEnabled(
+        "#runResident",
+        false
+      );
+
+      let started = false;
+
       const report = {
         steps:[]
       };
 
       try {
 
+        startFlow(flow);
+        started = true;
+
         requireProdConfirm();
+
+        const runMode =
+          getMode();
 
         await requireUserId(7);
 
+        const runId =
+          newRunId();
+
+        nsClearRun(runMode);
+
+        nsSet(
+          runMode,
+          "run_id",
+          runId
+        );
+
         const tag =
-          getMode() === "production"
-            ? "[PROD-E2E]"
-            : "[LOCAL-E2E]";
+          runTag(runMode, runId);
+
+        report.mode = runMode;
+        report.run_id = runId;
 
         const suffix =
           String(Date.now())
@@ -850,11 +1119,14 @@ document
             "talk create"
           );
 
+        assertSameMode(runMode);
+
         const postId =
           String(created.data.id);
 
-        sessionStorage.setItem(
-          "ph4_post_id",
+        nsSet(
+          runMode,
+          "post_id",
           postId
         );
 
@@ -904,8 +1176,9 @@ document
         const commentId =
           String(comment.data.id);
 
-        sessionStorage.setItem(
-          "ph4_comment_id",
+        nsSet(
+          runMode,
+          "comment_id",
           commentId
         );
 
@@ -1074,16 +1347,20 @@ document
         const approveId =
           await submitNews("approve");
 
+        assertSameMode(runMode);
+
         const rejectId =
           await submitNews("reject");
 
-        sessionStorage.setItem(
-          "ph4_approve_id",
+        nsSet(
+          runMode,
+          "approve_id",
           approveId
         );
 
-        sessionStorage.setItem(
-          "ph4_reject_id",
+        nsSet(
+          runMode,
+          "reject_id",
           rejectId
         );
 
@@ -1144,6 +1421,17 @@ document
           "#residentResult",
           report
         );
+
+      } finally {
+
+        if (started) {
+          endFlow(flow);
+        }
+
+        setButtonEnabled(
+          "#runResident",
+          true
+        );
       }
     }
   );
@@ -1159,40 +1447,119 @@ document
     "click",
     async () => {
 
+      const flow =
+        "admin";
+
+      setButtonEnabled(
+        "#runAdmin",
+        false
+      );
+
+      let started = false;
+
       const report = {
         steps:[]
       };
 
       try {
 
+        startFlow(flow);
+        started = true;
+
         requireProdConfirm();
+
+        const runMode =
+          getMode();
 
         await requireUserId(1);
 
+        const runId =
+          nsGet(
+            runMode,
+            "run_id"
+          );
+
         const postId =
-          sessionStorage.getItem(
-            "ph4_post_id"
+          nsGet(
+            runMode,
+            "post_id"
           );
 
         const approveId =
-          sessionStorage.getItem(
-            "ph4_approve_id"
+          nsGet(
+            runMode,
+            "approve_id"
           );
 
         const rejectId =
-          sessionStorage.getItem(
-            "ph4_reject_id"
+          nsGet(
+            runMode,
+            "reject_id"
           );
 
         if (
+          !runId ||
           !postId ||
           !approveId ||
           !rejectId
         ) {
           throw new Error(
-            "먼저 user 7 주민 플로우를 실행하세요."
+            "STALE_OR_CROSS_RUN_ID_BLOCKED: " +
+            "현재 모드의 resident run부터 실행하세요."
           );
         }
+
+        report.mode = runMode;
+        report.run_id = runId;
+
+        const expectedTag =
+          runTag(runMode, runId);
+
+        // Verify both submissions are fresh current-run rows.
+        const adminList =
+          assertSuccess(
+            await api(
+              "/api/admin/resident-news-submissions"
+            ),
+            "admin submission list"
+          );
+
+        const listed =
+          adminList.data?.submissions ??
+          [];
+
+        for (const [label, sid] of [
+          ["approve", approveId],
+          ["reject", rejectId]
+        ]) {
+          const found =
+            listed.find(
+              item =>
+                String(item.id) === sid
+            );
+
+          if (
+            !found ||
+            String(
+              found.submitter_user_id
+            ) !== "7" ||
+            found.status !==
+              "submitted" ||
+            !String(
+              found.title ?? ""
+            ).includes(expectedTag)
+          ) {
+            throw new Error(
+              "STALE_OR_CROSS_RUN_ID_BLOCKED: " +
+              `${label} submission ${sid}이(가) 현재 run 소유가 아닙니다.`
+            );
+          }
+        }
+
+        report.steps.push({
+          step:"current_run_submissions_verified",
+          pass:true
+        });
 
 
         // OTHER USER post update must 403
@@ -1252,8 +1619,9 @@ document
 
         // OTHER USER comment update must 403
         const commentId =
-          sessionStorage.getItem(
-            "ph4_comment_id"
+          nsGet(
+            runMode,
+            "comment_id"
           );
 
         if (commentId) {
@@ -1299,8 +1667,9 @@ document
             approved.data.content_id
           );
 
-        sessionStorage.setItem(
-          "ph4_content_id",
+        nsSet(
+          runMode,
+          "content_id",
           contentId
         );
 
@@ -1311,23 +1680,28 @@ document
         });
 
 
-        // APPROVED visible in public list
+        // APPROVED visible in public list with run marker
         const publicList =
           await guestFetch(
             "/api/resident-news"
           );
 
-        const visible =
+        const publishedItem =
           (publicList.data?.items ?? [])
-            .some(
+            .find(
               item =>
                 String(item.id) ===
                 contentId
             );
 
-        if (!visible) {
+        if (
+          !publishedItem ||
+          !String(
+            publishedItem.title ?? ""
+          ).includes(expectedTag)
+        ) {
           throw new Error(
-            "승인된 주민소식이 공개되지 않았습니다."
+            "승인된 주민소식이 현재 run 마커와 함께 공개되지 않았습니다."
           );
         }
 
@@ -1417,6 +1791,17 @@ document
           "#adminResult",
           report
         );
+
+      } finally {
+
+        if (started) {
+          endFlow(flow);
+        }
+
+        setButtonEnabled(
+          "#runAdmin",
+          true
+        );
       }
     }
   );
@@ -1432,24 +1817,101 @@ document
     "click",
     async () => {
 
+      const flow =
+        "delete";
+
+      setButtonEnabled(
+        "#runDelete",
+        false
+      );
+
+      let started = false;
+
       const report = {
         steps:[]
       };
 
       try {
 
+        startFlow(flow);
+        started = true;
+
         requireProdConfirm();
+
+        const runMode =
+          getMode();
 
         await requireUserId(7);
 
-        const postId =
-          sessionStorage.getItem(
-            "ph4_post_id"
+        const runId =
+          nsGet(
+            runMode,
+            "run_id"
           );
 
-        if (!postId) {
+        const postId =
+          nsGet(
+            runMode,
+            "post_id"
+          );
+
+        if (!runId || !postId) {
           throw new Error(
-            "삭제할 글 ID가 없습니다."
+            "STALE_OR_CROSS_RUN_ID_BLOCKED: " +
+            "현재 모드의 resident run부터 실행하세요."
+          );
+        }
+
+        report.mode = runMode;
+        report.run_id = runId;
+
+        const expectedTag =
+          runTag(runMode, runId);
+
+        // Verify post ownership + marker before delete.
+        const detail =
+          await api(
+            `/api/talk/${postId}`
+          );
+
+        if (
+          detail.http_status === 200 &&
+          detail.ok === true
+        ) {
+          const postAuthor =
+            String(
+              detail.data?.author?.id ??
+              detail.data?.author_user_id ??
+              ""
+            );
+
+          const postTitle =
+            String(
+              detail.data?.title ?? ""
+            );
+
+          if (
+            postAuthor !== "7" ||
+            !postTitle.includes(
+              expectedTag
+            )
+          ) {
+            throw new Error(
+              "STALE_OR_CROSS_RUN_ID_BLOCKED: " +
+              "삭제 대상이 현재 run 소유가 아닙니다."
+            );
+          }
+        } else if (
+          detail.http_status !== 404
+        ) {
+          throw new Error(
+            "삭제 대상 조회 실패: " +
+            JSON.stringify({
+              http_status:
+                detail.http_status,
+              error:
+                detail.error ?? null
+            })
           );
         }
 
@@ -1466,17 +1928,16 @@ document
           pass:true
         });
 
-        const detail =
+        const afterDelete =
           await api(
             `/api/talk/${postId}`
           );
 
         if (
-          detail.http_status !== 404
+          afterDelete.http_status !== 404
         ) {
           throw new Error(
-            "삭제된 글이 조회됩니다: " +
-            JSON.stringify(detail)
+            "삭제된 글이 조회됩니다."
           );
         }
 
@@ -1523,6 +1984,17 @@ document
         show(
           "#deleteResult",
           report
+        );
+
+      } finally {
+
+        if (started) {
+          endFlow(flow);
+        }
+
+        setButtonEnabled(
+          "#runDelete",
+          true
         );
       }
     }
